@@ -1,2 +1,2 @@
 # discord-translate
-Discord bot to provide servers with translation functionalities
+Discord bot that provides discord servers with translation functionalities for users

@@ -1,0 +1,4 @@
+discord-py-interactions
+python-dotenv
+google-cloud-translate
+six
