@@ -1,11 +1,13 @@
 import os
+import os
 import sqlite3
 
-import interactions
 from dotenv import load_dotenv
 from interactions import Client, ClientPresence, PresenceActivity, PresenceActivityType, Intents, Message, \
-    MessageReaction, get, Button, ButtonStyle, spread_to_rows, Embed, EmbedFooter, EmbedAuthor
-from translate import translate_text
+    MessageReaction, get, Embed, EmbedFooter, EmbedAuthor
+
+from constants import FLAG_DATA_REGIONAL
+from translate import translate_text, translation_tostring
 
 
 def main():
@@ -32,37 +34,45 @@ def main():
     async def on_start():
         print("Bot has been launched successfully.")
 
-    async def should_translate(reaction: MessageReaction, message: Message):
+    async def should_translate(reaction: MessageReaction, message: Message, emoji: str):
         if reaction.member.bot:  # reaction was made by a bot
             return False
         if client.me.id == message.id:  # reaction is on a translation message
-            await message.reply('')
+            return False
+        if emoji not in FLAG_DATA_REGIONAL:
             return False
         return True
 
     @client.event(name="on_message_reaction_add")
     async def reaction_add(reaction: MessageReaction):
-
+        print(reaction)
+        # get the message they reacted to
         message: Message = await get(
-            client, interactions.Message,
+            client,
+            Message,
             parent_id=int(reaction.channel_id),
             object_id=int(reaction.message_id)
         )
 
-        if not await should_translate(reaction, message):
+        emoji = reaction.emoji.name
+
+        if not await should_translate(reaction, message, emoji):
             return
 
-        text_to_translate
+        translated_text = await translation_tostring(
+            translate_text(
+                FLAG_DATA_REGIONAL[emoji],  # target languages
+                message.content  # text to translate
+            )
+        )
 
         embed_dict: dict = {
             "author": EmbedAuthor(name=reaction.member.name),
-            "description": f"`EN:` That was a crazy round. gg man\n\n"
-                           f"`FR:` c'était un tour fou, mec, gg",
+            "description": translated_text,
             "color": 0x56b0fd,
-            "footer": EmbedFooter(text=f'From English ・ requested by {reaction.member.name}'),
+            "footer": EmbedFooter(text=f'From English ・ by {reaction.member.name}'),
         }
         embed = Embed(**embed_dict)
-        # button = Button(style=ButtonStyle.SUCCESS, label="CONFIRM", custom_id="confirm_btn")
         await message.reply(embeds=[embed])
 
     client.start()
