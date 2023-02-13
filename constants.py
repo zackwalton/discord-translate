@@ -1,249 +1,3 @@
-FLAG_DATA = {
-    "flag_ac": ["en"],
-    "flag_ad": ["ca"],
-    "flag_ae": ["ar"],
-    "flag_af": ["ps", "fa"],
-    "flag_ag": ["en"],
-    "flag_ai": ["en"],
-    "flag_al": ["sq"],
-    "flag_am": ["hy"],
-    "flag_ao": ["pt"],
-    "flag_aq": ["en"],
-    "flag_ar": ["es"],
-    "flag_as": ["sm", "en"],
-    "flag_at": ["de"],
-    "flag_au": ["en"],
-    "flag_aw": ["nl"],
-    "flag_ax": ["sv"],
-    "flag_az": ["az"],
-    "flag_ba": ["bs", "sr", "hr"],
-    "flag_bb": ["en"],
-    "flag_bd": ["bn"],
-    "flag_be": ["fr", "nl", "de"],
-    "flag_bf": ["fr"],
-    "flag_bg": ["bg"],
-    "flag_bh": ["ar"],
-    "flag_bi": ["fr", "en"],
-    "flag_bj": ["fr"],
-    "flag_bl": ["fr"],
-    "flag_bm": ["en"],
-    "flag_bn": ["ms"],
-    "flag_bo": ["es", "qu", "ay"],
-    "flag_bq": ["en", "nl"],
-    "flag_br": ["pt"],
-    "flag_bs": ["en", "ht"],
-    "flag_bt": ["ne"],
-    "flag_bv": ["no"],
-    "flag_bw": ["en"],
-    "flag_by": ["be", "ru"],
-    "flag_bz": ["en"],
-    "flag_ca": ["en", "fr"],
-    "flag_cc": ["ms"],
-    "flag_cd": ["fr", "ln", "sw"],
-    "flag_cf": ["fr"],
-    "flag_cg": ["fr", "ln", "sw"],
-    "flag_ch": ["de", "it", "fr"],
-    "flag_ci": ["fr"],
-    "flag_ck": ["mi"],
-    "flag_cl": ["es", "ay"],
-    "flag_cm": ["fr", "en"],
-    "flag_cn": ["zh-CN", "zh-TW"],
-    "flag_co": ["es"],
-    "flag_cp": ["fr"],
-    "flag_cr": ["es"],
-    "flag_cu": ["es"],
-    "flag_cv": ["pt"],
-    "flag_cw": ["nl", "en", "es"],
-    "flag_cx": ["en"],
-    "flag_cy": ["el", "tr"],
-    "flag_cz": ["cs"],
-    "flag_de": ["de"],
-    "flag_dg": ["en"],
-    "flag_dj": ["so", "fr", "ar"],
-    "flag_dk": ["da"],
-    "flag_dm": ["en", "fr"],
-    "flag_do": ["es"],
-    "flag_dz": ["ar"],
-    "flag_ea": ["es"],
-    "flag_ec": ["es"],
-    "flag_ee": ["et"],
-    "flag_eg": ["ar"],
-    "flag_eh": ["ar"],
-    "flag_er": ["ti", "ar", "en"],
-    "flag_es": ["es"],
-    "flag_et": ["om", "am", "so"],
-    "flag_fi": ["fi", "sv"],
-    "flag_fj": ["en", "hi"],
-    "flag_fk": ["en"],
-    "flag_fm": ["en"],
-    "flag_fr": ["fr"],
-    "flag_ga": ["fr"],
-    "flag_gb": ["en"],
-    "flag_gd": ["en"],
-    "flag_ge": ["ka"],
-    "flag_gf": ["fr"],
-    "flag_gg": ["en", "fr"],
-    "flag_gh": ["en", "ak", "ee"],
-    "flag_gi": ["en"],
-    "flag_gl": ["da"],
-    "flag_gm": ["en"],
-    "flag_gn": ["fr"],
-    "flag_gp": ["fr"],
-    "flag_gq": ["es", "pt", "fr"],
-    "flag_gr": ["el"],
-    "flag_gs": ["ka", "ru", "az"],
-    "flag_gt": ["es"],
-    "flag_gu": ["en"],
-    "flag_gw": ["pt"],
-    "flag_gy": ["en", "hi"],
-    "flag_hk": ["zh-CN", "zh-TW"],
-    "flag_hm": ["en"],
-    "flag_hn": ["es"],
-    "flag_hr": ["hr"],
-    "flag_ht": ["ht"],
-    "flag_hu": ["hu"],
-    "flag_ic": ["es"],
-    "flag_id": ["id"],
-    "flag_ie": ["ga", "en"],
-    "flag_il": ["he"],
-    "flag_im": ["en"],
-    "flag_in": ["hi"],
-    "flag_io": ["en"],
-    "flag_iq": ["ar", "ku"],
-    "flag_ir": ["fa", "ku"],
-    "flag_is": ["is"],
-    "flag_it": ["it"],
-    "flag_je": ["en", "fr"],
-    "flag_jm": ["en"],
-    "flag_jo": ["ar"],
-    "flag_jp": ["ja"],
-    "flag_ke": ["sw"],
-    "flag_kg": ["ky"],
-    "flag_kh": ["km"],
-    "flag_km": ["ar"],
-    "flag_kn": ["en"],
-    "flag_kp": ["ko"],
-    "flag_kr": ["ko"],
-    "flag_kw": ["ar"],
-    "flag_ky": ["en"],
-    "flag_kz": ["kk"],
-    "flag_la": ["lo"],
-    "flag_lb": ["ar"],
-    "flag_lc": ["en"],
-    "flag_li": ["de"],
-    "flag_lk": ["si", "ta"],
-    "flag_lr": ["en"],
-    "flag_ls": ["st"],
-    "flag_lt": ["lt"],
-    "flag_lu": ["lb"],
-    "flag_lv": ["lv"],
-    "flag_ly": ["ar"],
-    "flag_ma": ["ar"],
-    "flag_mc": ["fr"],
-    "flag_md": ["ro"],
-    "flag_me": ["sr", "bs"],
-    "flag_mf": ["fr"],
-    "flag_mg": ["mg"],
-    "flag_mk": ["mk"],
-    "flag_ml": ["fr"],
-    "flag_mm": ["my"],
-    "flag_mn": ["mn"],
-    "flag_mo": ["zh-CN", "zh-TW"],
-    "flag_mq": ["fr"],
-    "flag_mr": ["ar"],
-    "flag_ms": ["en"],
-    "flag_mt": ["mt"],
-    "flag_mu": ["en", "fr"],
-    "flag_mv": ["dv"],
-    "flag_mw": ["en"],
-    "flag_mx": ["es"],
-    "flag_my": ["ms"],
-    "flag_mz": ["pt"],
-    "flag_na": ["af"],
-    "flag_nc": ["fr"],
-    "flag_ne": ["fr", "ar"],
-    "flag_ng": ["ha", "yo"],
-    "flag_ni": ["es"],
-    "flag_nl": ["nl"],
-    "flag_no": ["no"],
-    "flag_np": ["ne"],
-    "flag_nz": ["mi"],
-    "flag_om": ["ar"],
-    "flag_pa": ["es"],
-    "flag_pe": ["qu", "es"],
-    "flag_pf": ["fr"],
-    "flag_ph": ["en", "tl"],
-    "flag_pk": ["ur"],
-    "flag_pl": ["pl"],
-    "flag_pm": ["fr"],
-    "flag_pr": ["es"],
-    "flag_ps": ["ar", "he"],
-    "flag_pt": ["pt"],
-    "flag_py": ["gn"],
-    "flag_qa": ["ar"],
-    "flag_re": ["fr"],
-    "flag_ro": ["ro"],
-    "flag_rs": ["sr"],
-    "flag_ru": ["ru"],
-    "flag_rw": ["rw"],
-    "flag_sa": ["ar"],
-    "flag_sb": ["en"],
-    "flag_sc": ["fr", "en"],
-    "flag_sd": ["ar"],
-    "flag_se": ["sv"],
-    "flag_sg": ["ms", "ta", "zh"],
-    "flag_sh": ["en"],
-    "flag_si": ["sl"],
-    "flag_sj": ["no"],
-    "flag_sk": ["sk"],
-    "flag_sl": ["kri"],
-    "flag_sm": ["it"],
-    "flag_sn": ["fr"],
-    "flag_so": ["so"],
-    "flag_sr": ["nl"],
-    "flag_ss": ["en"],
-    "flag_st": ["pt"],
-    "flag_sv": ["es"],
-    "flag_sx": ["nl"],
-    "flag_sy": ["ar"],
-    "flag_sz": ["zu", "ts"],
-    "flag_ta": ["en"],
-    "flag_tc": ["en"],
-    "flag_td": ["fr", "ar"],
-    "flag_tf": ["fr"],
-    "flag_tg": ["fr"],
-    "flag_th": ["th"],
-    "flag_tj": ["tg"],
-    "flag_tl": ["pt"],
-    "flag_tm": ["tk"],
-    "flag_tn": ["ar"],
-    "flag_tr": ["tr"],
-    "flag_tt": ["en"],
-    "flag_tw": ["zh-CN", "zh-TW"],
-    "flag_tz": ["sw", "ar"],
-    "flag_ua": ["uk"],
-    "flag_ug": ["sw"],
-    "flag_um": ["en"],
-    "flag_us": ["en"],
-    "flag_uy": ["en"],
-    "flag_uz": ["uz"],
-    "flag_va": ["it", "la"],
-    "flag_vc": ["en"],
-    "flag_ve": ["es"],
-    "flag_vg": ["en"],
-    "flag_vi": ["en"],
-    "flag_vn": ["vi"],
-    "flag_vu": ["fr", "en"],
-    "flag_wf": ["fr"],
-    "flag_ws": ["sm"],
-    "flag_xk": ["sq", "sr"],
-    "flag_ye": ["ar"],
-    "flag_yt": ["fr"],
-    "flag_za": ["zu", "xh", "af"],
-    "flag_zm": ["ny"],
-    "flag_zw": ["sn", "st", "xh"],
-}
-
 FLAG_DATA_REGIONAL = {
     "🇦🇨": ["en"],
     "🇦🇩": ["ca"],
@@ -488,4 +242,560 @@ FLAG_DATA_REGIONAL = {
     "🇿🇦": ["zu", "xh", "af"],
     "🇿🇲": ["ny"],
     "🇿🇼": ["sn", "st", "xh"],
+    "🏴‍☠️": ["pi"]
 }
+
+GPT_LANGUAGES = [
+    'pi'
+]
+
+LANGUAGES = [
+    {
+        "language": "af",
+        "name": "Afrikaans"
+    },
+    {
+        "language": "ak",
+        "name": "Akan"
+    },
+    {
+        "language": "sq",
+        "name": "Albanian"
+    },
+    {
+        "language": "am",
+        "name": "Amharic"
+    },
+    {
+        "language": "ar",
+        "name": "Arabic"
+    },
+    {
+        "language": "hy",
+        "name": "Armenian"
+    },
+    {
+        "language": "as",
+        "name": "Assamese"
+    },
+    {
+        "language": "ay",
+        "name": "Aymara"
+    },
+    {
+        "language": "az",
+        "name": "Azerbaijani"
+    },
+    {
+        "language": "bm",
+        "name": "Bambara"
+    },
+    {
+        "language": "eu",
+        "name": "Basque"
+    },
+    {
+        "language": "be",
+        "name": "Belarusian"
+    },
+    {
+        "language": "bn",
+        "name": "Bengali"
+    },
+    {
+        "language": "bho",
+        "name": "Bhojpuri"
+    },
+    {
+        "language": "bs",
+        "name": "Bosnian"
+    },
+    {
+        "language": "bg",
+        "name": "Bulgarian"
+    },
+    {
+        "language": "ca",
+        "name": "Catalan"
+    },
+    {
+        "language": "ceb",
+        "name": "Cebuano"
+    },
+    {
+        "language": "ny",
+        "name": "Chichewa"
+    },
+    {
+        "language": "zh",
+        "name": "Chinese (Simplified)"
+    },
+    {
+        "language": "zh-TW",
+        "name": "Chinese (Traditional)"
+    },
+    {
+        "language": "co",
+        "name": "Corsican"
+    },
+    {
+        "language": "hr",
+        "name": "Croatian"
+    },
+    {
+        "language": "cs",
+        "name": "Czech"
+    },
+    {
+        "language": "da",
+        "name": "Danish"
+    },
+    {
+        "language": "dv",
+        "name": "Divehi"
+    },
+    {
+        "language": "doi",
+        "name": "Dogri"
+    },
+    {
+        "language": "nl",
+        "name": "Dutch"
+    },
+    {
+        "language": "en",
+        "name": "English"
+    },
+    {
+        "language": "eo",
+        "name": "Esperanto"
+    },
+    {
+        "language": "et",
+        "name": "Estonian"
+    },
+    {
+        "language": "ee",
+        "name": "Ewe"
+    },
+    {
+        "language": "tl",
+        "name": "Filipino"
+    },
+    {
+        "language": "fi",
+        "name": "Finnish"
+    },
+    {
+        "language": "fr",
+        "name": "French"
+    },
+    {
+        "language": "fy",
+        "name": "Frisian"
+    },
+    {
+        "language": "gl",
+        "name": "Galician"
+    },
+    {
+        "language": "lg",
+        "name": "Ganda"
+    },
+    {
+        "language": "ka",
+        "name": "Georgian"
+    },
+    {
+        "language": "de",
+        "name": "German"
+    },
+    {
+        "language": "gom",
+        "name": "Goan Konkani"
+    },
+    {
+        "language": "el",
+        "name": "Greek"
+    },
+    {
+        "language": "gn",
+        "name": "Guarani"
+    },
+    {
+        "language": "gu",
+        "name": "Gujarati"
+    },
+    {
+        "language": "ht",
+        "name": "Haitian Creole"
+    },
+    {
+        "language": "ha",
+        "name": "Hausa"
+    },
+    {
+        "language": "haw",
+        "name": "Hawaiian"
+    },
+    {
+        "language": "iw",
+        "name": "Hebrew"
+    },
+    {
+        "language": "hi",
+        "name": "Hindi"
+    },
+    {
+        "language": "hmn",
+        "name": "Hmong"
+    },
+    {
+        "language": "hu",
+        "name": "Hungarian"
+    },
+    {
+        "language": "is",
+        "name": "Icelandic"
+    },
+    {
+        "language": "ig",
+        "name": "Igbo"
+    },
+    {
+        "language": "ilo",
+        "name": "Iloko"
+    },
+    {
+        "language": "id",
+        "name": "Indonesian"
+    },
+    {
+        "language": "ga",
+        "name": "Irish"
+    },
+    {
+        "language": "it",
+        "name": "Italian"
+    },
+    {
+        "language": "ja",
+        "name": "Japanese"
+    },
+    {
+        "language": "jw",
+        "name": "Javanese"
+    },
+    {
+        "language": "kn",
+        "name": "Kannada"
+    },
+    {
+        "language": "kk",
+        "name": "Kazakh"
+    },
+    {
+        "language": "km",
+        "name": "Khmer"
+    },
+    {
+        "language": "rw",
+        "name": "Kinyarwanda"
+    },
+    {
+        "language": "ko",
+        "name": "Korean"
+    },
+    {
+        "language": "kri",
+        "name": "Krio"
+    },
+    {
+        "language": "ku",
+        "name": "Kurdish (Kurmanji)"
+    },
+    {
+        "language": "ckb",
+        "name": "Kurdish (Sorani)"
+    },
+    {
+        "language": "ky",
+        "name": "Kyrgyz"
+    },
+    {
+        "language": "lo",
+        "name": "Lao"
+    },
+    {
+        "language": "la",
+        "name": "Latin"
+    },
+    {
+        "language": "lv",
+        "name": "Latvian"
+    },
+    {
+        "language": "ln",
+        "name": "Lingala"
+    },
+    {
+        "language": "lt",
+        "name": "Lithuanian"
+    },
+    {
+        "language": "lb",
+        "name": "Luxembourgish"
+    },
+    {
+        "language": "mk",
+        "name": "Macedonian"
+    },
+    {
+        "language": "mai",
+        "name": "Maithili"
+    },
+    {
+        "language": "mg",
+        "name": "Malagasy"
+    },
+    {
+        "language": "ms",
+        "name": "Malay"
+    },
+    {
+        "language": "ml",
+        "name": "Malayalam"
+    },
+    {
+        "language": "mt",
+        "name": "Maltese"
+    },
+    {
+        "language": "mni-Mtei",
+        "name": "Manipuri (Meitei Mayek)"
+    },
+    {
+        "language": "mi",
+        "name": "Maori"
+    },
+    {
+        "language": "mr",
+        "name": "Marathi"
+    },
+    {
+        "language": "lus",
+        "name": "Mizo"
+    },
+    {
+        "language": "mn",
+        "name": "Mongolian"
+    },
+    {
+        "language": "my",
+        "name": "Myanmar (Burmese)"
+    },
+    {
+        "language": "ne",
+        "name": "Nepali"
+    },
+    {
+        "language": "nso",
+        "name": "Northern Sotho"
+    },
+    {
+        "language": "no",
+        "name": "Norwegian"
+    },
+    {
+        "language": "or",
+        "name": "Odia (Oriya)"
+    },
+    {
+        "language": "om",
+        "name": "Oromo"
+    },
+    {
+        "language": "ps",
+        "name": "Pashto"
+    },
+    {
+        "language": "fa",
+        "name": "Persian"
+    },
+    {
+        "language": "pl",
+        "name": "Polish"
+    },
+    {
+        "language": "pt",
+        "name": "Portuguese"
+    },
+    {
+        "language": "pa",
+        "name": "Punjabi"
+    },
+    {
+        "language": "qu",
+        "name": "Quechua"
+    },
+    {
+        "language": "ro",
+        "name": "Romanian"
+    },
+    {
+        "language": "ru",
+        "name": "Russian"
+    },
+    {
+        "language": "sm",
+        "name": "Samoan"
+    },
+    {
+        "language": "sa",
+        "name": "Sanskrit"
+    },
+    {
+        "language": "gd",
+        "name": "Scots Gaelic"
+    },
+    {
+        "language": "sr",
+        "name": "Serbian"
+    },
+    {
+        "language": "st",
+        "name": "Sesotho"
+    },
+    {
+        "language": "sn",
+        "name": "Shona"
+    },
+    {
+        "language": "sd",
+        "name": "Sindhi"
+    },
+    {
+        "language": "si",
+        "name": "Sinhala"
+    },
+    {
+        "language": "sk",
+        "name": "Slovak"
+    },
+    {
+        "language": "sl",
+        "name": "Slovenian"
+    },
+    {
+        "language": "so",
+        "name": "Somali"
+    },
+    {
+        "language": "es",
+        "name": "Spanish"
+    },
+    {
+        "language": "su",
+        "name": "Sundanese"
+    },
+    {
+        "language": "sw",
+        "name": "Swahili"
+    },
+    {
+        "language": "sv",
+        "name": "Swedish"
+    },
+    {
+        "language": "tg",
+        "name": "Tajik"
+    },
+    {
+        "language": "ta",
+        "name": "Tamil"
+    },
+    {
+        "language": "tt",
+        "name": "Tatar"
+    },
+    {
+        "language": "te",
+        "name": "Telugu"
+    },
+    {
+        "language": "th",
+        "name": "Thai"
+    },
+    {
+        "language": "ti",
+        "name": "Tigrinya"
+    },
+    {
+        "language": "ts",
+        "name": "Tsonga"
+    },
+    {
+        "language": "tr",
+        "name": "Turkish"
+    },
+    {
+        "language": "tk",
+        "name": "Turkmen"
+    },
+    {
+        "language": "uk",
+        "name": "Ukrainian"
+    },
+    {
+        "language": "ur",
+        "name": "Urdu"
+    },
+    {
+        "language": "ug",
+        "name": "Uyghur"
+    },
+    {
+        "language": "uz",
+        "name": "Uzbek"
+    },
+    {
+        "language": "vi",
+        "name": "Vietnamese"
+    },
+    {
+        "language": "cy",
+        "name": "Welsh"
+    },
+    {
+        "language": "xh",
+        "name": "Xhosa"
+    },
+    {
+        "language": "yi",
+        "name": "Yiddish"
+    },
+    {
+        "language": "yo",
+        "name": "Yoruba"
+    },
+    {
+        "language": "zu",
+        "name": "Zulu"
+    },
+    {
+        "language": "he",
+        "name": "Hebrew"
+    },
+    {
+        "language": "jv",
+        "name": "Javanese"
+    },
+    {
+        "language": "zh-CN",
+        "name": "Chinese (Simplified)"
+    },
+    {
+        "language": "pi",
+        "name": "English Pirate"
+    }
+]
