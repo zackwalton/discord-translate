@@ -71,11 +71,11 @@ async def gpt_translate(text: str, target: str) -> dict:
     print(response)
     return response
 
-
+# 🇦 🇧 🇨 🇩 🇪 🇫 🇬 🇭 🇮 🇯 🇰 🇱 🇲 🇳 🇴 🇵 🇶 🇷 🇸 🇹 🇺 🇻 🇼 🇽 🇾 🇿
 async def get_language_name(lang: str) -> str:
     """ Return the full name from the ISO language code e.g. 'en' -> 'English' """
     for lang_data in LANGUAGES:
-        if lang_data['language'] == lang:
+        if lang_data['iso'] == lang:
             return lang_data['name']
 
 
