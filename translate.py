@@ -6,6 +6,7 @@ import six
 from dotenv import load_dotenv
 from google.api_core.exceptions import BadRequest
 from google.cloud import translate_v2 as translate
+from utils import get_language_name
 
 from constants import LANGUAGES, GPT_LANGUAGES
 
@@ -60,7 +61,7 @@ async def translate_text(targets: [str], text: str) -> [dict]:
 
 async def gpt_translate(text: str, target: str) -> dict:
     prompt = f'Translate this text into English but spoken like a' \
-             f' {await get_language_name(target)}: "{text}"'
+             f' {get_language_name(target)}: "{text}"'
     print(prompt)
     response = openai.Completion.create(
         model='text-davinci-003',
@@ -70,13 +71,6 @@ async def gpt_translate(text: str, target: str) -> dict:
     )
     print(response)
     return response
-
-# 🇦 🇧 🇨 🇩 🇪 🇫 🇬 🇭 🇮 🇯 🇰 🇱 🇲 🇳 🇴 🇵 🇶 🇷 🇸 🇹 🇺 🇻 🇼 🇽 🇾 🇿
-async def get_language_name(lang: str) -> str:
-    """ Return the full name from the ISO language code e.g. 'en' -> 'English' """
-    for lang_data in LANGUAGES:
-        if lang_data['iso'] == lang:
-            return lang_data['name']
 
 
 async def detect_text_language(text: str) -> dict:
@@ -88,6 +82,7 @@ async def detect_text_language(text: str) -> dict:
     print("Language: {}".format(result["language"]))
 
     return result
+
 
 async def create_detection_embed(detection_data: dict):
     """ Create embed for language detection functionality"""

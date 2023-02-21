@@ -1,20 +1,21 @@
 import asyncio
+import json
 import os
 import re
 import sqlite3
 from pprint import pformat
-from functools import partial
 
 import interactions
 from dotenv import load_dotenv
 from interactions import Client, ClientPresence, PresenceActivity, PresenceActivityType, Intents, Message, \
     MessageReaction, get, Embed, EmbedFooter, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, Guild, \
     Button, ButtonStyle, ComponentContext, Emoji, EmbedField, ActionRow, EmbedImageStruct, spread_to_rows, Component, \
-    SelectMenu, SelectOption, ComponentType, ChannelType
+    SelectMenu, SelectOption, ComponentType, ChannelType, User
 
-from constants import FLAG_DATA_REGIONAL
-from translate import translate_text, translation_tostring, detect_text_language, get_language_name
-from utils import EMBED_COLOUR
+from constants import FLAG_DATA_REGIONAL, LANGUAGES
+from translate import translate_text, translation_tostring, detect_text_language
+from utils import EMBED_COLOUR, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name, find_in_list, \
+    AUTO_TRANSLATE_OPTIONS
 
 
 def main():
@@ -107,7 +108,7 @@ def main():
             embed_dict['author'] = EmbedAuthor(name=reaction.member.name)
             embed_dict['description'] = translated_text
             embed_dict['footer'] = EmbedFooter(
-                text=f'From {await get_language_name(translation_data[0]["detectedSourceLanguage"])} ・ '
+                text=f'From {get_language_name(translation_data[0]["detectedSourceLanguage"])} ・ '
                      f'by {reaction.member.name}'
             )
 
@@ -131,24 +132,32 @@ def main():
     @client.command(name='admin', default_member_permissions=Permissions.ADMINISTRATOR, )
     async def admin(ctx: CommandContext):
         """ Configurate your server's translation settings """
+        guild: Guild = await ctx.get_guild()
 
         def update_guild_data() -> dict:
             """ Returns updated guild data from the database """
-            cursor.execute("SELECT * FROM guild WHERE id = ?", [int(ctx.guild_id)])
+            cursor.execute("SELECT * FROM guild WHERE id = ?", [int(guild.id)])
             return dict(cursor.fetchone())
 
+        async def update_category_data() -> [dict]:
+            """ Returns updated category data from the database """
+            print(f'DEBUG: Updating category data for {selected_category}')
+            cursor.execute(f"SELECT * FROM category WHERE id = (?)", (selected_category,))
+            query = cursor.fetchone()
+            if query:
+                return dict(query)
+            else:
+                print('DEBUG: Did not find the category, creating entry.')
+                cursor.execute(f"INSERT INTO category (id) VALUES (?)", (selected_category,))
+                return await update_category_data()
+
         def update_auto_delete_options(settings_data: dict) -> [SelectOption]:
+            print(f'DEBUG: Updating auto delete options for data: {settings_data}')
             cd = settings_data['auto_delete_cd']
             options = [
                 SelectOption(label=label, value=seconds, description=f'Delete translation messages after {label}',
                              emoji=Emoji(name='⌛'), default=True if cd == seconds else False)
-                for label, seconds in [
-                    ('30 Seconds', 30),
-                    ('1 Minute', 60),
-                    ('2 Minutes', 120),
-                    ('5 Minutes', 300),
-                    ('15 Minutes', 900)
-                ]
+                for label, seconds in AUTO_DELETE_TIMERS
             ]
             options.insert(
                 0, SelectOption(label='Never delete', value=-1, description='Never delete translation messages',
@@ -158,10 +167,25 @@ def main():
                 print(option)
             return options
 
-        guild_data = update_guild_data()
-        footer = EmbedFooter(text='disclate ・ v1.0')
-        guild = await ctx.get_guild()
+        def update_auto_translation_options(settings_data: dict) -> [SelectOption]:
+            auto_translate_langs = [] if not settings_data['auto_translate'] else settings_data['auto_translate']
+            options = []
+            for code in AUTO_TRANSLATE_OPTIONS:
+                full_name = get_language_name(code, add_native=True)
+                options.append(
+                    SelectOption(label=full_name, value=code,
+                                 description=f'Automatically translate messages to {full_name}',
+                                 default=code in auto_translate_langs))
+            return options
 
+        guild_data = update_guild_data()
+        category_list = [channel for channel in await guild.get_all_channels()
+                         if channel.type == ChannelType.GUILD_CATEGORY]
+        text_channel_list = [channel for channel in await guild.get_all_channels()
+                             if channel.type == ChannelType.GUILD_TEXT]
+        footer = EmbedFooter(text='disclate ・ v1.0')
+
+        # region Admin Panel
         async def create_home_embed() -> (Embed, [ActionRow], [Component]):
             embed_dict = {
                 'title': f'`{guild.name}`',
@@ -194,10 +218,12 @@ def main():
             ]
             return embed, rows, [*settings_buttons, shop_button, support_button]
 
+        # endregion
+        # region Server Settings
         async def create_server_settings_embed() -> (Embed, [ActionRow], [Component]):
             flag_t = guild_data['flag_translation']
             cmd_t = guild_data['command_translation']
-            
+
             embed_dict = {
                 'title': f'`{guild.name}` - Server Settings',
                 'thumbnail': EmbedImageStruct(url=guild.icon_url),
@@ -227,64 +253,144 @@ def main():
             rows = spread_to_rows(auto_delete_select, back_button, flag_button, cmd_button)
             return embed, rows, [auto_delete_select, back_button, flag_button, cmd_button]
 
+        # endregion
+        # region Category Settings
         async def create_category_settings_embed() -> (Embed, [ActionRow], [Component]):
             embed_dict = {
                 'title': f'`{guild.name}` - Category Settings',
-                'thumbnail': EmbedImageStruct(url=guild.icon_url),
                 'description': f'This is the `Category Settings` page, you can make changes here that '
                                f'affect a categories and all the channels under it. '
                                f'\n\nChoose a category from the dropdown to view its configuration.',
                 'color': EMBED_COLOUR,
                 'footer': footer
             }
+            disable_reset_button, disable_edit_button = True, True
             if selected_category:
+                cursor.execute('SELECT * FROM category WHERE id = ?', (selected_category,))
+                category_data = cursor.fetchone()
+                disable_edit_button = False
+                if category_data:
+                    category_data = dict(category_data)
+                    langs = [f'`{get_language_name(language)}`'
+                             for language in json.loads(category_data['auto_translate'])]
+                    auto_delete_string = get_auto_delete_timer_string(category_data['auto_delete_cd'])
+                    disable_reset_button = False
+                else:
+                    langs = ['`None`']
+                    auto_delete_string = get_auto_delete_timer_string(None)
+
+                affected_channels = [
+                    f'{channel.mention}' for channel in text_channel_list
+                    if channel.parent_id == selected_category]
+                languages_string = '\n'.join(langs)
+
+                affected_string = '\n'.join(affected_channels) \
+                    if affected_channels else '*No text channels associated with this category.*'
+
                 embed_dict['fields'] = [
-                    EmbedField(name=f'Auto Translation', value='> English, French, Afrikaans, Latin', inline=True),
-                    EmbedField(name='Auto Delete', value='> Inherit', inline=True),
-                    EmbedField(name='Channels Affected', value='> #mytesting\n> #dump\n> #review', inline=True)
+                    EmbedField(name=f'Auto Translation', value=languages_string, inline=True),
+                    EmbedField(name='Auto Delete', value=auto_delete_string, inline=True),
+                    EmbedField(name='Channels Affected', value=affected_string)
                 ]
             embed = Embed(**embed_dict)
             back_button = Button(style=ButtonStyle.SECONDARY,
                                  label='Back', custom_id='to_homepage', emoji=Emoji(id='1075538962787082250'))
-            edit_button = Button(style=ButtonStyle.PRIMARY,
-                                 label='Edit', custom_id='edit_category_settings', emoji=Emoji(name='✏️'))
+            edit_button = Button(style=ButtonStyle.PRIMARY, label='Edit', custom_id='edit_category_settings',
+                                 emoji=Emoji(name='✏️'), disabled=disable_edit_button)
+            reset_button = Button(style=ButtonStyle.PRIMARY, label='Reset', custom_id='reset_category_settings',
+                                  emoji=Emoji(name='🔁'), disabled=disable_reset_button)
             category_select = SelectMenu(
+                placeholder='Select a category...',
                 custom_id='category_select',
                 type=ComponentType.CHANNEL_SELECT,
                 channel_types=[ChannelType.GUILD_CATEGORY]
             )
-            rows = spread_to_rows(category_select, back_button, edit_button)
-            return embed, rows, [category_select, back_button, edit_button]
+            rows = spread_to_rows(category_select, back_button, edit_button, reset_button)
+            return embed, rows, [category_select, back_button, edit_button, reset_button]
 
-        async def create_channel_settings_embed() -> (Embed, [ActionRow], [Component]):
+        async def create_category_edit_embed() -> (Embed, [ActionRow], [Component]):
+            category = next(channel for channel in category_list
+                            if channel.id == selected_category)
+            if not category:
+                return create_category_settings_embed()
+
             embed_dict = {
-                'title': f'`{guild.name}` - Channel Settings',
-                'thumbnail': EmbedImageStruct(url=guild.icon_url),
-                'description': f'This is the `Category Settings` page, you can make changes here that '
-                               f'affect a categories and all the channels inside it. '
-                               f'\n\nChoose a category from the dropdown to view its configuration.',
+                'title': f'`{category.name}` - Edit Category',
+                'description': f'You are editing the `{category.name}` category, changes affect all associated text '
+                               f'channels.'
+                               '\n\nSettings on this page:\n'
+                               '`Auto Translation` Dropdown for automatic translation languages.\n'
+                               '`Auto Delete` Dropdown for translation message lifetime.',
                 'color': EMBED_COLOUR,
                 'footer': footer
             }
+            embed = Embed(**embed_dict)
+            auto_translate_select = SelectMenu(
+                placeholder='Select languages for auto translation...',
+                custom_id='auto_translate_category',
+                options=auto_translation_options,
+                min_values=0,
+                max_values=3
+            )
+            auto_delete_select = SelectMenu(
+                custom_id='auto_delete_category',
+                options=auto_delete_options,
+            )
+            back_button = Button(style=ButtonStyle.SECONDARY,
+                                 label='Back', custom_id='to_category_settings', emoji=Emoji(id='1075538962787082250'))
+            return (embed, spread_to_rows(auto_translate_select, auto_delete_select, back_button),
+                    [auto_translate_select, auto_delete_select, back_button])
 
+        # endregion
+        # region Channel Settings
+        async def create_channel_settings_embed() -> (Embed, [ActionRow], [Component]):
+            embed_dict = {
+                'title': f'`{guild.name}` - Channel Settings',
+                'description': f'This is the `Channel Settings` page, you can make changes here that '
+                               f'affect a single channel.'
+                               f'\n\nChoose a channel from the dropdown to view its configuration.',
+                'color': EMBED_COLOUR,
+                'footer': footer
+            }
+            disable_reset = True
             if selected_channel:
+                cursor.execute('SELECT * FROM channel WHERE id = ?', (selected_channel,))
+                channel_data = cursor.fetchone()
+                if channel_data:
+                    channel_data = dict(channel_data)
+                    langs = [f'`{get_language_name(language)}`'
+                             for language in json.loads(channel_data['auto_translate'])]
+                    auto_delete_string = get_auto_delete_timer_string(channel_data['auto_delete_cd'])
+                    disable_reset = False
+                else:
+                    langs = ['`None`']
+                    auto_delete_string = get_auto_delete_timer_string(None)
+                languages_string = '\n'.join(langs)
+
                 embed_dict['fields'] = [
-                    EmbedField(name=f'Auto Translation', value='> English, French, Afrikaans, Latin', inline=True),
-                    EmbedField(name='Auto Delete', value='> Inherit', inline=True)
+                    EmbedField(name=f'Auto Translation', value=languages_string, inline=True),
+                    EmbedField(name='Auto Delete', value=auto_delete_string, inline=True)
                 ]
             embed = Embed(**embed_dict)
             back_button = Button(style=ButtonStyle.SECONDARY,
                                  label='Back', custom_id='to_homepage', emoji=Emoji(id='1075538962787082250'))
             edit_button = Button(style=ButtonStyle.PRIMARY,
                                  label='Edit', custom_id='edit_channel_settings', emoji=Emoji(name='✏️'))
+            reset_button = Button(style=ButtonStyle.PRIMARY, label='Reset', custom_id='reset_channel_settings',
+                                  emoji=Emoji(name='🔁'), disabled=disable_reset)
             channel_select = SelectMenu(
+                placeholder='Select a channel...',
                 custom_id='channel_select',
                 type=ComponentType.CHANNEL_SELECT,
                 channel_types=[ChannelType.GUILD_TEXT]
             )
-            rows = spread_to_rows(channel_select, back_button, edit_button)
-            return embed, rows, [channel_select, back_button, edit_button]
+            rows = spread_to_rows(channel_select, back_button, edit_button, reset_button)
+            return embed, rows, [channel_select, back_button, edit_button, reset_button]
 
+        async def create_channel_edit_embed() -> (Embed, [ActionRow], [Component]):
+            pass
+
+        # endregion
         next_embed, action_rows, all_components = await create_home_embed()
         message = await ctx.send(embeds=next_embed, components=action_rows)
 
@@ -313,7 +419,6 @@ def main():
                         next_embed_function = create_category_settings_embed
                     case 'channels_settings':
                         selected_channel = None
-                        print('here')
                         next_embed_function = create_channel_settings_embed
                     # endregion
                     # region Server Settings
@@ -335,33 +440,78 @@ def main():
                             print(new_cooldown)
 
                         cursor.execute(f"UPDATE guild SET auto_delete_cd=? WHERE id=?;", (new_cooldown, int(guild.id)))
-                        next_embed_function = create_server_settings_embed
                         conn.commit()
                         guild_data = update_guild_data()
                         auto_delete_options = update_auto_delete_options(guild_data)
+                        next_embed_function = create_server_settings_embed
                     # endregion
                     # region Category Settings
-
                     case 'category_select':
                         selected_category = button_ctx.data.values[0]
                         next_embed_function = create_category_settings_embed
+                    case 'reset_category_settings':
+                        if selected_category:
+                            cursor.execute('DELETE FROM category WHERE id=?;', (int(selected_category),))
+                            conn.commit()
+                        next_embed_function = create_category_settings_embed
+                    case 'to_category_settings':
+                        selected_category = None
+                        next_embed_function = create_category_settings_embed
+                    case 'edit_category_settings':
+                        category_data = await update_category_data()
+                        auto_delete_options = update_auto_delete_options(category_data)
+                        auto_translation_options = update_auto_translation_options(category_data)
+                        next_embed_function = create_category_edit_embed
+                    case 'auto_delete_category':
+                        new_cooldown = int(button_ctx.data.values[0])
+                        if new_cooldown == -1:
+                            new_cooldown = None
+                            print(new_cooldown)
+
+                        cursor.execute(f"UPDATE category SET auto_delete_cd=? WHERE id=?;",
+                                       (new_cooldown, int(selected_category)))
+                        conn.commit()
+                        category_data = await update_category_data()
+                        auto_delete_options = update_auto_delete_options(category_data)
+                        next_embed_function = create_category_edit_embed
+                    case 'auto_translate_category':
+                        values = button_ctx.data.values
+                        if not values:
+                            values = None
+                        cursor.execute(f"UPDATE category SET auto_translate=? WHERE id=?;",
+                                       (json.dumps(values), int(selected_category)))
+                        conn.commit()
+                        category_data = await update_category_data()
+                        auto_translation_options = update_auto_translation_options(category_data)
+                        next_embed_function = create_category_edit_embed
                     # endregion
                     # region Channel Settings
                     case 'channel_select':
                         selected_channel = button_ctx.data.values[0]
                         next_embed_function = create_channel_settings_embed
+                    case 'reset_channel_settings':
+                        if selected_channel:
+                            cursor.execute('DELETE FROM channel WHERE id=?;', (int(selected_channel),))
+                            conn.commit()
+                        next_embed_function = create_channel_settings_embed
 
                     # endregion
-                    case other:
-                        print('ERROR: Invalid custom_id value: ' + other)
-                        raise asyncio.TimeoutError
+                    # region Fallback
+                    case _:
+                        me: User = await get(client, User, object_id=275018879779078155)
+                        await message.edit(embeds=Embed(
+                            description=f'**Uh oh! Something went wrong. '
+                                        f'Please try using `/{ctx.data.name}` again.**\n\n'
+                                        f'*If issues persist, contact {me.mention}*', footer=footer))
+                        break
+                    # endregion
                 next_embed, action_rows, all_components = await next_embed_function()
                 message = await button_ctx.edit(embeds=next_embed, components=action_rows)
 
             except asyncio.TimeoutError:
                 await message.edit(embeds=Embed(
-                    description=f'Your session has expired, please use `/{ctx.data.name}` again if you would '
-                                f'like to continue.'))
+                    description=f'**Your session has expired, please use `/{ctx.data.name}` again if you would '
+                                f'like to continue.**'))
                 break
 
     @client.command(
@@ -440,9 +590,9 @@ def main():
     # endregion
     # region Listeners
 
-    @client.event()
-    async def on_component(ctx: ComponentContext):
-        pass
+    # @client.event()
+    # async def on_component(ctx: ComponentContext):
+    #     pass
 
     # endregion
 

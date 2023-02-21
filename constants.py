@@ -251,673 +251,674 @@ GPT_LANGUAGES = [
 
 LANGUAGES = [
   {
-    "language": "af",
+    "iso": "af",
     "name": "Afrikaans",
     "native": "Afrikaans"
   },
   {
-    "language": "ak",
+    "iso": "ak",
     "name": "Akan",
     "native": "Akan"
   },
   {
-    "language": "sq",
+    "iso": "sq",
     "name": "Albanian",
     "native": "shqip"
   },
   {
-    "language": "am",
+    "iso": "am",
     "name": "Amharic",
     "native": "ኣማርኛ"
   },
   {
-    "language": "ar",
+    "iso": "ar",
     "name": "Arabic",
     "native": "العربية"
   },
   {
-    "language": "hy",
+    "iso": "hy",
     "name": "Armenian",
     "native": "Հայերեն"
   },
   {
-    "language": "as",
+    "iso": "as",
     "name": "Assamese",
     "native": "অসমীয়া"
   },
   {
-    "language": "ay",
+    "iso": "ay",
     "name": "Aymara",
     "native": "aymar aru"
   },
   {
-    "language": "az",
+    "iso": "az",
     "name": "Azerbaijani",
     "native": "Azərbaycan dili"
   },
   {
-    "language": "bm",
+    "iso": "bm",
     "name": "Bambara",
     "native": "Bamanankan"
   },
   {
-    "language": "eu",
+    "iso": "eu",
     "name": "Basque",
     "native": "Euskara"
   },
   {
-    "language": "be",
+    "iso": "be",
     "name": "Belarusian",
     "native": "беларуская мова"
   },
   {
-    "language": "bn",
+    "iso": "bn",
     "name": "Bengali",
     "native": "বাংলা"
   },
   {
-    "language": "bho",
+    "iso": "bho",
     "name": "Bhojpuri",
     "native": "भोजपुरी"
   },
   {
-    "language": "bs",
+    "iso": "bs",
     "name": "Bosnian",
     "native": "Bosanski jezik"
   },
   {
-    "language": "bg",
+    "iso": "bg",
     "name": "Bulgarian",
     "native": "български език"
   },
   {
-    "language": "ca",
+    "iso": "ca",
     "name": "Catalan",
     "native": "Català"
   },
   {
-    "language": "ceb",
+    "iso": "ceb",
     "name": "Cebuano",
     "native": "Sinugboanon"
   },
   {
-    "language": "ny",
+    "iso": "ny",
     "name": "Chichewa",
     "native": "Chicheŵa"
   },
   {
-    "language": ("zh", "zh-CN"),
+    "iso": "zh-CN",
     "name": "Chinese (Simplified)",
     "native": "汉语"
   },
   {
-    "language": "zh-TW",
+    "iso": "zh-TW",
     "name": "Chinese (Traditional)",
     "native": "漢語"
   },
   {
-    "language": "co",
+    "iso": "co",
     "name": "Corsican",
     "native": "Corsu"
   },
   {
-    "language": "hr",
+    "iso": "hr",
     "name": "Croatian",
     "native": "Hrvatski jezik"
   },
   {
-    "language": "cs",
+    "iso": "cs",
     "name": "Czech",
     "native": "Čeština"
   },
   {
-    "language": "da",
+    "iso": "da",
     "name": "Danish",
     "native": "Dansk"
   },
   {
-    "language": "dv",
+    "iso": "dv",
     "name": "Divehi",
     "native": "Divehi"
   },
   {
-    "language": "doi",
+    "iso": "doi",
     "name": "Dogri",
     "native": "Dogri"
   },
   {
-    "language": "nl",
+    "iso": "nl",
     "name": "Dutch",
     "native": "Nederlands"
   },
   {
-    "language": "en",
+    "iso": "en",
     "name": "English",
     "native": "English"
   },
   {
-    "language": "eo",
+    "iso": "eo",
     "name": "Esperanto",
     "native": "Esperanto"
   },
   {
-    "language": "et",
+    "iso": "et",
     "name": "Estonian",
     "native": "eesti keel"
   },
   {
-    "language": "ee",
+    "iso": "ee",
     "name": "Ewe",
     "native": "Eʋegbe"
   },
   {
-    "language": "tl",
+    "iso": "tl",
     "name": "Filipino",
     "native": "Tagalog"
   },
   {
-    "language": "fi",
+    "iso": "fi",
     "name": "Finnish",
     "native": "suomi"
   },
   {
-    "language": "fr",
+    "iso": "fr",
     "name": "French",
     "native": "français"
   },
   {
-    "language": "fy",
+    "iso": "fy",
     "name": "Frisian",
     "native": "Frysk"
   },
   {
-    "language": "gl",
+    "iso": "gl",
     "name": "Galician",
     "native": "Galego"
   },
   {
-    "language": "lg",
+    "iso": "lg",
     "name": "Ganda",
     "native": "LùGáànda"
   },
   {
-    "language": "ka",
+    "iso": "ka",
     "name": "Georgian",
     "native": "ქართული"
   },
   {
-    "language": "de",
+    "iso": "de",
     "name": "German",
     "native": "Deutsch"
   },
   {
-    "language": "gom",
+    "iso": "gom",
     "name": "Goan Konkani",
     "native": "कोंकणी"
   },
   {
-    "language": "el",
+    "iso": "el",
     "name": "Greek",
     "native": "ελληνικά"
   },
   {
-    "language": "gn",
+    "iso": "gn",
     "name": "Guarani",
     "native": "Avañe’ẽ"
   },
   {
-    "language": "gu",
+    "iso": "gu",
     "name": "Gujarati",
     "native": "ગુજરાતી"
   },
   {
-    "language": "ht",
+    "iso": "ht",
     "name": "Haitian Creole",
     "native": "Kreyòl ayisyen"
   },
   {
-    "language": "ha",
+    "iso": "ha",
     "name": "Hausa",
     "native": "حَوْسَ"
   },
   {
-    "language": "haw",
+    "iso": "haw",
     "name": "Hawaiian",
     "native": "ʻŌlelo Hawaiʻi"
   },
   {
-    "language": ("iw", "he"),
+    "iso": "he",
     "name": "Hebrew",
     "native": "עִבְרִית"
   },
   {
-    "language": "hi",
+    "iso": "hi",
     "name": "Hindi",
     "native": "हिन्दी"
   },
   {
-    "language": "hmn",
+    "iso": "hmn",
     "name": "Hmong",
     "native": "Hmong"
   },
   {
-    "language": "hu",
+    "iso": "hu",
     "name": "Hungarian",
     "native": "magyar"
   },
   {
-    "language": "is",
+    "iso": "is",
     "name": "Icelandic",
     "native": "Íslenska"
   },
   {
-    "language": "ig",
+    "iso": "ig",
     "name": "Igbo",
     "native": "Igbo"
   },
   {
-    "language": "ilo",
+    "iso": "ilo",
     "name": "Iloko",
     "native": "ilokano"
   },
   {
-    "language": "id",
+    "iso": "id",
     "name": "Indonesian",
     "native": "Bahasa Indonesia"
   },
   {
-    "language": "ga",
+    "iso": "ga",
     "name": "Irish",
     "native": "Gaeilge"
   },
   {
-    "language": "it",
+    "iso": "it",
     "name": "Italian",
     "native": "italiano"
   },
   {
-    "language": "ja",
+    "iso": "ja",
     "name": "Japanese",
     "native": "日本語"
   },
   {
-    "language": ("jw", "jv"),
+    "iso": "jv",
     "name": "Javanese",
     "native": "basa Jawa"
   },
   {
-    "language": "kn",
+    "iso": "kn",
     "name": "Kannada",
     "native": "ಕನ್ನಡ"
   },
   {
-    "language": "kk",
+    "iso": "kk",
     "name": "Kazakh",
     "native": "Қазақ тілі"
   },
   {
-    "language": "km",
+    "iso": "km",
     "name": "Khmer",
     "native": "ភាសាខ្មែរ"
   },
   {
-    "language": "rw",
+    "iso": "rw",
     "name": "Kinyarwanda",
     "native": "Ikinyarwanda"
   },
   {
-    "language": "ko",
+    "iso": "ko",
     "name": "Korean",
     "native": "한국어"
   },
   {
-    "language": "kri",
+    "iso": "kri",
     "name": "Krio",
     "native": "Krio"
   },
   {
-    "language": "ku",
+    "iso": "ku",
     "name": "Kurdish (Kurmanji)",
     "native": "کوردی"
   },
   {
-    "language": "ckb",
+    "iso": "ckb",
     "name": "Kurdish (Sorani)",
     "native": "کوردی"
   },
   {
-    "language": "ky",
+    "iso": "ky",
     "name": "Kyrgyz",
     "native": "Кыргыз"
   },
   {
-    "language": "lo",
+    "iso": "lo",
     "name": "Lao",
     "native": "ພາສາລາວ"
   },
   {
-    "language": "la",
+    "iso": "la",
     "name": "Latin",
     "native": "Lingua Latina"
   },
   {
-    "language": "lv",
+    "iso": "lv",
     "name": "Latvian",
     "native": "latviešu valoda"
   },
   {
-    "language": "ln",
+    "iso": "ln",
     "name": "Lingala",
     "native": "lingála"
   },
   {
-    "language": "lt",
+    "iso": "lt",
     "name": "Lithuanian",
     "native": "lietuvių kalba"
   },
   {
-    "language": "lb",
+    "iso": "lb",
     "name": "Luxembourgish",
     "native": "Lëtzebuergesch"
   },
   {
-    "language": "mk",
+    "iso": "mk",
     "name": "Macedonian",
     "native": "македонски"
   },
   {
-    "language": "mai",
+    "iso": "mai",
     "name": "Maithili",
     "native": "मैथिली"
   },
   {
-    "language": "mg",
+    "iso": "mg",
     "name": "Malagasy",
     "native": "Fiteny Malagasy"
   },
   {
-    "language": "ms",
+    "iso": "ms",
     "name": "Malay",
     "native": "Bahasa melayu"
   },
   {
-    "language": "ml",
+    "iso": "ml",
     "name": "Malayalam",
     "native": "മലയാളം"
   },
   {
-    "language": "mt",
+    "iso": "mt",
     "name": "Maltese",
     "native": "Malti"
   },
   {
-    "language": "mni-Mtei",
+    "iso": "mni-Mtei",
     "name": "Manipuri (Meitei Mayek)",
     "native": "মৈইতৈইলোন"
   },
   {
-    "language": "mi",
+    "iso": "mi",
     "name": "Maori",
     "native": "te Reo Māori"
   },
   {
-    "language": "mr",
+    "iso": "mr",
     "name": "Marathi",
     "native": "मराठी"
   },
   {
-    "language": "lus",
+    "iso": "lus",
     "name": "Mizo",
     "native": "Mizo"
   },
   {
-    "language": "mn",
+    "iso": "mn",
     "name": "Mongolian",
     "native": "монгол"
   },
   {
-    "language": "my",
+    "iso": "my",
     "name": "Myanmar (Burmese)",
     "native": "ဗမာစကား"
   },
   {
-    "language": "ne",
+    "iso": "ne",
     "name": "Nepali",
     "native": "नेपाली"
   },
   {
-    "language": "nso",
+    "iso": "nso",
     "name": "Northern Sotho",
     "native": "Sesotho sa Leboa"
   },
   {
-    "language": "no",
+    "iso": "no",
     "name": "Norwegian",
     "native": "Norsk"
   },
   {
-    "language": "or",
+    "iso": "or",
     "name": "Odia (Oriya)",
     "native": "ଓଡ଼ିଆ"
   },
   {
-    "language": "om",
+    "iso": "om",
     "name": "Oromo",
     "native": "Afaan Oromo"
   },
   {
-    "language": "ps",
+    "iso": "ps",
     "name": "Pashto",
     "native": "پښتو"
   },
   {
-    "language": "fa",
+    "iso": "fa",
     "name": "Persian",
     "native": "فارسى"
   },
   {
-    "language": "pl",
+    "iso": "pl",
     "name": "Polish",
     "native": "polski"
   },
   {
-    "language": "pt",
+    "iso": "pt",
     "name": "Portuguese",
     "native": "português"
   },
   {
-    "language": "pa",
+    "iso": "pa",
     "name": "Punjabi",
     "native": "ਪੰਜਾਬੀ"
   },
   {
-    "language": "qu",
+    "iso": "qu",
     "name": "Quechua",
     "native": "Qhichwa"
   },
   {
-    "language": "ro",
+    "iso": "ro",
     "name": "Romanian",
     "native": "român"
   },
   {
-    "language": "ru",
+    "iso": "ru",
     "name": "Russian",
     "native": "Русский"
   },
   {
-    "language": "sm",
+    "iso": "sm",
     "name": "Samoan",
     "native": "Gagana Samoa"
   },
   {
-    "language": "sa",
+    "iso": "sa",
     "name": "Sanskrit",
     "native": "संस्कृतम्"
   },
   {
-    "language": "gd",
+    "iso": "gd",
     "name": "Scots Gaelic",
     "native": "Gàidhlig"
   },
   {
-    "language": "sr",
+    "iso": "sr",
     "name": "Serbian",
     "native": "српски"
   },
   {
-    "language": "st",
+    "iso": "st",
     "name": "Sesotho",
     "native": "Sesotho"
   },
   {
-    "language": "sn",
+    "iso": "sn",
     "name": "Shona",
     "native": "chiShona"
   },
   {
-    "language": "sd",
+    "iso": "sd",
     "name": "Sindhi",
     "native": "سنڌي"
   },
   {
-    "language": "si",
+    "iso": "si",
     "name": "Sinhala",
     "native": "සිංහල"
   },
   {
-    "language": "sk",
+    "iso": "sk",
     "name": "Slovak",
     "native": "slovenčina"
   },
   {
-    "language": "sl",
+    "iso": "sl",
     "name": "Slovenian",
     "native": "slovenščina"
   },
   {
-    "language": "so",
+    "iso": "so",
     "name": "Somali",
     "native": "af Soomaali"
   },
   {
-    "language": "es",
+    "iso": "es",
     "name": "Spanish",
     "native": "español"
   },
   {
-    "language": "su",
+    "iso": "su",
     "name": "Sundanese",
     "native": "Basa Sunda"
   },
   {
-    "language": "sw",
+    "iso": "sw",
     "name": "Swahili",
     "native": "Kiswahili"
   },
   {
-    "language": "sv",
+    "iso": "sv",
     "name": "Swedish",
     "native": "Svenska"
   },
   {
-    "language": "tg",
+    "iso": "tg",
     "name": "Tajik",
     "native": "тоҷики"
   },
   {
-    "language": "ta",
+    "iso": "ta",
     "name": "Tamil",
     "native": "தமிழ்"
   },
   {
-    "language": "tt",
+    "iso": "tt",
     "name": "Tatar",
     "native": "татарча"
   },
   {
-    "language": "te",
+    "iso": "te",
     "name": "Telugu",
     "native": "తెలుగు"
   },
   {
-    "language": "th",
+    "iso": "th",
     "name": "Thai",
     "native": "ภาษาไทย"
   },
   {
-    "language": "ti",
+    "iso": "ti",
     "name": "Tigrinya",
     "native": "ትግርኛ"
   },
   {
-    "language": "ts",
+    "iso": "ts",
     "name": "Tsonga",
     "native": "xiTsonga"
   },
   {
-    "language": "tr",
+    "iso": "tr",
     "name": "Turkish",
     "native": "Türkçe"
   },
   {
-    "language": "tk",
+    "iso": "tk",
     "name": "Turkmen",
     "native": "түркmенче"
   },
   {
-    "language": "uk",
+    "iso": "uk",
     "name": "Ukrainian",
     "native": "Українська"
   },
   {
-    "language": "ur",
+    "iso": "ur",
     "name": "Urdu",
     "native": "اردو"
   },
   {
-    "language": "ug",
+    "iso": "ug",
     "name": "Uyghur",
     "native": "Уйғур"
   },
   {
-    "language": "uz",
+    "iso": "uz",
     "name": "Uzbek",
     "native": "o’zbek,ўзбек"
   },
   {
-    "language": "vi",
+    "iso": "vi",
     "name": "Vietnamese",
     "native": "tiếng việt"
   },
   {
-    "language": "cy",
+    "iso": "cy",
     "name": "Welsh",
     "native": "Cymraeg"
   },
   {
-    "language": "xh",
+    "iso": "xh",
     "name": "Xhosa",
     "native": "isiXhosa"
   },
   {
-    "language": "yi",
+    "iso": "yi",
     "name": "Yiddish",
     "native": "ײִדיש"
   },
   {
-    "language": "yo",
+    "iso": "yo",
     "name": "Yoruba",
     "native": "Yorùbá"
   },
   {
-    "language": "zu",
+    "iso": "zu",
     "name": "Zulu",
     "native": "isiZulu"
   },
   {
-    "language": "pi",
+    "iso": "pi",
     "name": "Pirate",
     "native": "English Pirate"
   }
 ]
+
