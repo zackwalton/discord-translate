@@ -151,6 +151,18 @@ def main():
                 cursor.execute(f"INSERT INTO category (id) VALUES (?)", (selected_category,))
                 return await update_category_data()
 
+        async def update_channel_data() -> [dict]:
+            """ Returns updated channel data from the database """
+            print(f'DEBUG: Updating channel data for {selected_channel}')
+            cursor.execute(f"SELECT * FROM channel WHERE id = (?)", (selected_channel,))
+            query = cursor.fetchone()
+            if query:
+                return dict(query)
+            else:
+                print('DEBUG: Did not find the channel, creating entry.')
+                cursor.execute(f"INSERT INTO channel (id) VALUES (?)", (selected_channel,))
+                return await update_channel_data()
+
         def update_auto_delete_options(settings_data: dict) -> [SelectOption]:
             print(f'DEBUG: Updating auto delete options for data: {settings_data}')
             cd = settings_data['auto_delete_cd']
@@ -163,8 +175,6 @@ def main():
                 0, SelectOption(label='Never delete', value=-1, description='Never delete translation messages',
                                 emoji=Emoji(name='⌛'), default=True if not cd else False)
             )
-            for option in options:
-                print(option)
             return options
 
         def update_auto_translation_options(settings_data: dict) -> [SelectOption]:
@@ -202,21 +212,23 @@ def main():
             }
             embed = Embed(**embed_dict)
 
-            # todo linked channels button
             labels = ['server', 'categories', 'channels']
             settings_buttons = [
                 Button(style=ButtonStyle.SECONDARY, label=label.title(), custom_id=f'{label}_settings',
                        emoji=Emoji(id='1075539703014633512')) for label in labels]
+
+            linked_channels_button = Button(style=ButtonStyle.SECONDARY, label='Linked Channels',
+                                            custom_id='links_settings', emoji=Emoji(id='1075539703014633512'))
 
             shop_button = Button(style=ButtonStyle.LINK, label='Buy Tokens', url='https://www.google.com/',
                                  emoji=Emoji(id='1075540183941914788'))
             support_button = Button(style=ButtonStyle.SECONDARY,
                                     label='Support', custom_id='support', emoji=Emoji(id='1075539728553750621'))
             rows = [
-                ActionRow(components=settings_buttons),
+                ActionRow(components=[*settings_buttons, linked_channels_button]),
                 ActionRow(components=[shop_button, support_button])
             ]
-            return embed, rows, [*settings_buttons, shop_button, support_button]
+            return embed, rows, [*settings_buttons, linked_channels_button, shop_button, support_button]
 
         # endregion
         # region Server Settings
@@ -271,13 +283,16 @@ def main():
                 disable_edit_button = False
                 if category_data:
                     category_data = dict(category_data)
-                    langs = [f'`{get_language_name(language)}`'
-                             for language in json.loads(category_data['auto_translate'])]
                     auto_delete_string = get_auto_delete_timer_string(category_data['auto_delete_cd'])
                     disable_reset_button = False
                 else:
-                    langs = ['`None`']
                     auto_delete_string = get_auto_delete_timer_string(None)
+
+                langs = (
+                    ['`None`'] if not category_data or not category_data['auto_translate']
+                    else [f'`{get_language_name(language)}`'
+                          for language in json.loads(category_data['auto_translate'])]
+                )
 
                 affected_channels = [
                     f'{channel.mention}' for channel in text_channel_list
@@ -352,19 +367,23 @@ def main():
                 'color': EMBED_COLOUR,
                 'footer': footer
             }
-            disable_reset = True
+            disable_reset_button, disable_edit_button = True, True
             if selected_channel:
                 cursor.execute('SELECT * FROM channel WHERE id = ?', (selected_channel,))
                 channel_data = cursor.fetchone()
+                disable_edit_button = False
                 if channel_data:
                     channel_data = dict(channel_data)
-                    langs = [f'`{get_language_name(language)}`'
-                             for language in json.loads(channel_data['auto_translate'])]
                     auto_delete_string = get_auto_delete_timer_string(channel_data['auto_delete_cd'])
-                    disable_reset = False
+                    disable_reset_button = False
                 else:
-                    langs = ['`None`']
                     auto_delete_string = get_auto_delete_timer_string(None)
+
+                langs = (
+                    ['`None`'] if not channel_data or not channel_data['auto_translate']
+                    else [f'`{get_language_name(language)}`'
+                          for language in json.loads(channel_data['auto_translate'])]
+                )
                 languages_string = '\n'.join(langs)
 
                 embed_dict['fields'] = [
@@ -374,10 +393,10 @@ def main():
             embed = Embed(**embed_dict)
             back_button = Button(style=ButtonStyle.SECONDARY,
                                  label='Back', custom_id='to_homepage', emoji=Emoji(id='1075538962787082250'))
-            edit_button = Button(style=ButtonStyle.PRIMARY,
-                                 label='Edit', custom_id='edit_channel_settings', emoji=Emoji(name='✏️'))
+            edit_button = Button(style=ButtonStyle.PRIMARY, label='Edit', custom_id='edit_channel_settings',
+                                 emoji=Emoji(name='✏️'), disabled=disable_edit_button)
             reset_button = Button(style=ButtonStyle.PRIMARY, label='Reset', custom_id='reset_channel_settings',
-                                  emoji=Emoji(name='🔁'), disabled=disable_reset)
+                                  emoji=Emoji(name='🔁'), disabled=disable_reset_button)
             channel_select = SelectMenu(
                 placeholder='Select a channel...',
                 custom_id='channel_select',
@@ -388,7 +407,36 @@ def main():
             return embed, rows, [channel_select, back_button, edit_button, reset_button]
 
         async def create_channel_edit_embed() -> (Embed, [ActionRow], [Component]):
-            pass
+            channel = next(channel for channel in text_channel_list
+                           if channel.id == selected_channel)
+            if not channel:
+                return create_category_settings_embed()
+
+            embed_dict = {
+                'title': f'`{channel.name}` - Edit Channel',
+                'description': f'You are editing {channel.mention}, changes affect only this channel.'
+                               '\n\nSettings on this page:\n'
+                               '`Auto Translation` Dropdown for automatic translation languages.\n'
+                               '`Auto Delete` Dropdown for translation message lifetime.',
+                'color': EMBED_COLOUR,
+                'footer': footer
+            }
+            embed = Embed(**embed_dict)
+            auto_translate_select = SelectMenu(
+                placeholder='Select languages for auto translation...',
+                custom_id='auto_translate_channel',
+                options=auto_translation_options,
+                min_values=0,
+                max_values=3
+            )
+            auto_delete_select = SelectMenu(
+                custom_id='auto_delete_channel',
+                options=auto_delete_options,
+            )
+            back_button = Button(style=ButtonStyle.SECONDARY,
+                                 label='Back', custom_id='to_channel_settings', emoji=Emoji(id='1075538962787082250'))
+            return (embed, spread_to_rows(auto_translate_select, auto_delete_select, back_button),
+                    [auto_translate_select, auto_delete_select, back_button])
 
         # endregion
         next_embed, action_rows, all_components = await create_home_embed()
@@ -466,7 +514,6 @@ def main():
                         new_cooldown = int(button_ctx.data.values[0])
                         if new_cooldown == -1:
                             new_cooldown = None
-                            print(new_cooldown)
 
                         cursor.execute(f"UPDATE category SET auto_delete_cd=? WHERE id=?;",
                                        (new_cooldown, int(selected_category)))
@@ -476,10 +523,10 @@ def main():
                         next_embed_function = create_category_edit_embed
                     case 'auto_translate_category':
                         values = button_ctx.data.values
-                        if not values:
-                            values = None
+                        values = None if not values else json.dumps(values)
+                        print(f'DEBUG: updating category {selected_category} auto-translate with {values}')
                         cursor.execute(f"UPDATE category SET auto_translate=? WHERE id=?;",
-                                       (json.dumps(values), int(selected_category)))
+                                       (values, int(selected_category)))
                         conn.commit()
                         category_data = await update_category_data()
                         auto_translation_options = update_auto_translation_options(category_data)
@@ -494,8 +541,51 @@ def main():
                             cursor.execute('DELETE FROM channel WHERE id=?;', (int(selected_channel),))
                             conn.commit()
                         next_embed_function = create_channel_settings_embed
+                    case 'to_channel_settings':
+                        selected_channel = None
+                        next_embed_function = create_channel_settings_embed
+                    case 'edit_channel_settings':
+                        category_data = await update_channel_data()
+                        auto_delete_options = update_auto_delete_options(category_data)
+                        auto_translation_options = update_auto_translation_options(category_data)
+                        next_embed_function = create_channel_edit_embed
+                    case 'auto_delete_channel':
+                        new_cooldown = int(button_ctx.data.values[0])
+                        if new_cooldown == -1:
+                            new_cooldown = None
+
+                        cursor.execute(f"UPDATE channel SET auto_delete_cd=? WHERE id=?;",
+                                       (new_cooldown, int(selected_channel)))
+                        conn.commit()
+                        channel_data = await update_channel_data()
+                        auto_delete_options = update_auto_delete_options(channel_data)
+                        next_embed_function = create_channel_edit_embed
+                    case 'auto_translate_channel':
+                        values = button_ctx.data.values
+                        values = None if not values else json.dumps(values)
+                        print(f'DEBUG: updating channel {selected_channel} auto-translate with {values}')
+                        cursor.execute(f"UPDATE channel SET auto_translate=? WHERE id=?;",
+                                       (values, int(selected_channel)))
+                        conn.commit()
+                        channel_data = await update_channel_data()
+                        auto_translation_options = update_auto_translation_options(channel_data)
+                        next_embed_function = create_channel_edit_embed
 
                     # endregion
+                    # region Links Settings
+                    case 'links_settings':
+                        next_embed_function = create_links_settings_embed
+                    case 'to_links_settings':
+                        next_embed_function = create_links_settings_embed
+                    case 'link_select':
+                        next_embed_function = create_links_settings_embed
+                    case 'link_delete':
+                        next_embed_function = create_links_settings_embed
+                    case 'to_links_create':
+                        next_embed_function = create_links_create_embed
+                    # endregion
+
+
                     # region Fallback
                     case _:
                         me: User = await get(client, User, object_id=275018879779078155)
@@ -526,7 +616,6 @@ def main():
     async def ban_command(ctx: CommandContext, member: Member):
         """ Ban a user from using the bot """
 
-        # todo create role if missing
         #  https://interactionspy.readthedocs.io/en/latest/api.models.guild.html#interactions.api.models.guild.Guild.create_role
         ban_role_name = 'no-translate'
         guild: Guild = await ctx.get_guild()
