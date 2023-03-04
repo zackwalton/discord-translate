@@ -23,7 +23,7 @@ TRANSLATION_CLIENT = translate.Client()
 
 
 async def translate_text(targets: [str], text: str) -> [dict]:
-    """ Translates text into all target languages using the Google Cloud Translation API
+    """ Translates text into all target languages using the Google Cloud Translation API or GPT 3.5 Turbo
     Args:
         targets: List of all target translation languages e.g. ['en', 'fr']
         text: Text to translate to all target languages
@@ -43,11 +43,13 @@ async def translate_text(targets: [str], text: str) -> [dict]:
         try:
             start_time = time.time()
             if target in GPT_LANGUAGES:
-                response: str = (await gpt_translate(text, target))['choices'][0]['text']
-                response = response.replace('\n', '')
+                response = (await gpt_translate(text, target))['choices'][0]['message']['content']
+                # response = response.replace('\n', '')
                 result = {'translatedText': response}
             else:
                 result = TRANSLATION_CLIENT.translate(text, target_language=target, format_='text')
+                if result['detectedSourceLanguage'] == target:  # skip languages that are the same as the source
+                    continue
             print(result)
             end_time = time.time()
             print(f"DEBUG: Translation took: {end_time - start_time:.2f} seconds")
@@ -60,14 +62,14 @@ async def translate_text(targets: [str], text: str) -> [dict]:
 
 
 async def gpt_translate(text: str, target: str) -> dict:
-    prompt = f'Translate this text into English but spoken like a' \
-             f' {get_language_name(target)}: "{text}"'
+    prompt = f'Translate the following text to {get_language_name(target)}, ' \
+             f'do not include any other text but the translation: \n\n"""{text}"""'
     print(prompt)
-    response = openai.Completion.create(
-        model='text-davinci-003',
-        prompt=prompt,
-        max_tokens=min(len(prompt), 500),  # todo update with remaining tokens for server
-        temperature=0.7,
+    response = openai.ChatCompletion.create(
+        model='gpt-3.5-turbo',
+        messages=[
+            {'role': 'system', 'content': prompt}
+        ]
     )
     print(response)
     return response

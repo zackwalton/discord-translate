@@ -263,7 +263,7 @@ LANGUAGES = [
   {
     "iso": "sq",
     "name": "Albanian",
-    "native": "shqip"
+    "native": "Shqip"
   },
   {
     "iso": "am",
@@ -288,12 +288,12 @@ LANGUAGES = [
   {
     "iso": "ay",
     "name": "Aymara",
-    "native": "aymar aru"
+    "native": "Aymar Aru"
   },
   {
     "iso": "az",
     "name": "Azerbaijani",
-    "native": "Azərbaycan dili"
+    "native": "Azərbaycan Dili"
   },
   {
     "iso": "bm",
@@ -308,7 +308,7 @@ LANGUAGES = [
   {
     "iso": "be",
     "name": "Belarusian",
-    "native": "беларуская мова"
+    "native": "Беларуская Мова"
   },
   {
     "iso": "bn",
@@ -323,12 +323,12 @@ LANGUAGES = [
   {
     "iso": "bs",
     "name": "Bosnian",
-    "native": "Bosanski jezik"
+    "native": "Bosanski Jezik"
   },
   {
     "iso": "bg",
     "name": "Bulgarian",
-    "native": "български език"
+    "native": "Български Език"
   },
   {
     "iso": "ca",
@@ -363,7 +363,7 @@ LANGUAGES = [
   {
     "iso": "hr",
     "name": "Croatian",
-    "native": "Hrvatski jezik"
+    "native": "Hrvatski Jezik"
   },
   {
     "iso": "cs",
@@ -403,7 +403,7 @@ LANGUAGES = [
   {
     "iso": "et",
     "name": "Estonian",
-    "native": "eesti keel"
+    "native": "Eesti Keel"
   },
   {
     "iso": "ee",
@@ -418,12 +418,12 @@ LANGUAGES = [
   {
     "iso": "fi",
     "name": "Finnish",
-    "native": "suomi"
+    "native": "Suomi"
   },
   {
     "iso": "fr",
     "name": "French",
-    "native": "français"
+    "native": "Français"
   },
   {
     "iso": "fy",
@@ -438,7 +438,7 @@ LANGUAGES = [
   {
     "iso": "lg",
     "name": "Ganda",
-    "native": "LùGáànda"
+    "native": "Lùgáànda"
   },
   {
     "iso": "ka",
@@ -458,12 +458,12 @@ LANGUAGES = [
   {
     "iso": "el",
     "name": "Greek",
-    "native": "ελληνικά"
+    "native": "Ελληνικά"
   },
   {
     "iso": "gn",
     "name": "Guarani",
-    "native": "Avañe’ẽ"
+    "native": "Avañe’Ẽ"
   },
   {
     "iso": "gu",
@@ -473,7 +473,7 @@ LANGUAGES = [
   {
     "iso": "ht",
     "name": "Haitian Creole",
-    "native": "Kreyòl ayisyen"
+    "native": "Kreyòl Ayisyen"
   },
   {
     "iso": "ha",
@@ -483,7 +483,7 @@ LANGUAGES = [
   {
     "iso": "haw",
     "name": "Hawaiian",
-    "native": "ʻŌlelo Hawaiʻi"
+    "native": "ʻŌlelo HawaiʻI"
   },
   {
     "iso": "he",
@@ -503,7 +503,7 @@ LANGUAGES = [
   {
     "iso": "hu",
     "name": "Hungarian",
-    "native": "magyar"
+    "native": "Magyar"
   },
   {
     "iso": "is",
@@ -518,7 +518,7 @@ LANGUAGES = [
   {
     "iso": "ilo",
     "name": "Iloko",
-    "native": "ilokano"
+    "native": "Ilokano"
   },
   {
     "iso": "id",
@@ -533,7 +533,7 @@ LANGUAGES = [
   {
     "iso": "it",
     "name": "Italian",
-    "native": "italiano"
+    "native": "Italiano"
   },
   {
     "iso": "ja",
@@ -543,7 +543,7 @@ LANGUAGES = [
   {
     "iso": "jv",
     "name": "Javanese",
-    "native": "basa Jawa"
+    "native": "Basa Jawa"
   },
   {
     "iso": "kn",
@@ -553,7 +553,7 @@ LANGUAGES = [
   {
     "iso": "kk",
     "name": "Kazakh",
-    "native": "Қазақ тілі"
+    "native": "Қазақ Тілі"
   },
   {
     "iso": "km",
@@ -603,17 +603,17 @@ LANGUAGES = [
   {
     "iso": "lv",
     "name": "Latvian",
-    "native": "latviešu valoda"
+    "native": "Latviešu Valoda"
   },
   {
     "iso": "ln",
     "name": "Lingala",
-    "native": "lingála"
+    "native": "Lingála"
   },
   {
     "iso": "lt",
     "name": "Lithuanian",
-    "native": "lietuvių kalba"
+    "native": "Lietuvių Kalba"
   },
   {
     "iso": "lb",
@@ -623,7 +623,7 @@ LANGUAGES = [
   {
     "iso": "mk",
     "name": "Macedonian",
-    "native": "македонски"
+    "native": "Македонски"
   },
   {
     "iso": "mai",
@@ -638,7 +638,7 @@ LANGUAGES = [
   {
     "iso": "ms",
     "name": "Malay",
-    "native": "Bahasa melayu"
+    "native": "Bahasa Melayu"
   },
   {
     "iso": "ml",
@@ -658,7 +658,7 @@ LANGUAGES = [
   {
     "iso": "mi",
     "name": "Maori",
-    "native": "te Reo Māori"
+    "native": "Te Reo Māori"
   },
   {
     "iso": "mr",
@@ -673,7 +673,7 @@ LANGUAGES = [
   {
     "iso": "mn",
     "name": "Mongolian",
-    "native": "монгол"
+    "native": "Монгол"
   },
   {
     "iso": "my",
@@ -688,7 +688,7 @@ LANGUAGES = [
   {
     "iso": "nso",
     "name": "Northern Sotho",
-    "native": "Sesotho sa Leboa"
+    "native": "Sesotho Sa Leboa"
   },
   {
     "iso": "no",
@@ -718,12 +718,12 @@ LANGUAGES = [
   {
     "iso": "pl",
     "name": "Polish",
-    "native": "polski"
+    "native": "Polski"
   },
   {
     "iso": "pt",
     "name": "Portuguese",
-    "native": "português"
+    "native": "Português"
   },
   {
     "iso": "pa",
@@ -738,7 +738,7 @@ LANGUAGES = [
   {
     "iso": "ro",
     "name": "Romanian",
-    "native": "român"
+    "native": "Român"
   },
   {
     "iso": "ru",
@@ -763,7 +763,7 @@ LANGUAGES = [
   {
     "iso": "sr",
     "name": "Serbian",
-    "native": "српски"
+    "native": "Српски"
   },
   {
     "iso": "st",
@@ -773,7 +773,7 @@ LANGUAGES = [
   {
     "iso": "sn",
     "name": "Shona",
-    "native": "chiShona"
+    "native": "Chishona"
   },
   {
     "iso": "sd",
@@ -788,22 +788,22 @@ LANGUAGES = [
   {
     "iso": "sk",
     "name": "Slovak",
-    "native": "slovenčina"
+    "native": "Slovenčina"
   },
   {
     "iso": "sl",
     "name": "Slovenian",
-    "native": "slovenščina"
+    "native": "Slovenščina"
   },
   {
     "iso": "so",
     "name": "Somali",
-    "native": "af Soomaali"
+    "native": "Af Soomaali"
   },
   {
     "iso": "es",
     "name": "Spanish",
-    "native": "español"
+    "native": "Español"
   },
   {
     "iso": "su",
@@ -823,7 +823,7 @@ LANGUAGES = [
   {
     "iso": "tg",
     "name": "Tajik",
-    "native": "тоҷики"
+    "native": "Тоҷики"
   },
   {
     "iso": "ta",
@@ -833,7 +833,7 @@ LANGUAGES = [
   {
     "iso": "tt",
     "name": "Tatar",
-    "native": "татарча"
+    "native": "Татарча"
   },
   {
     "iso": "te",
@@ -853,7 +853,7 @@ LANGUAGES = [
   {
     "iso": "ts",
     "name": "Tsonga",
-    "native": "xiTsonga"
+    "native": "Xitsonga"
   },
   {
     "iso": "tr",
@@ -863,7 +863,7 @@ LANGUAGES = [
   {
     "iso": "tk",
     "name": "Turkmen",
-    "native": "түркmенче"
+    "native": "Түркmенче"
   },
   {
     "iso": "uk",
@@ -883,12 +883,12 @@ LANGUAGES = [
   {
     "iso": "uz",
     "name": "Uzbek",
-    "native": "o’zbek,ўзбек"
+    "native": "O’Zbek,Ўзбек"
   },
   {
     "iso": "vi",
     "name": "Vietnamese",
-    "native": "tiếng việt"
+    "native": "Tiếng Việt"
   },
   {
     "iso": "cy",
@@ -898,7 +898,7 @@ LANGUAGES = [
   {
     "iso": "xh",
     "name": "Xhosa",
-    "native": "isiXhosa"
+    "native": "Isixhosa"
   },
   {
     "iso": "yi",
@@ -913,7 +913,7 @@ LANGUAGES = [
   {
     "iso": "zu",
     "name": "Zulu",
-    "native": "isiZulu"
+    "native": "Isizulu"
   },
   {
     "iso": "pi",
@@ -921,4 +921,3 @@ LANGUAGES = [
     "native": "English Pirate"
   }
 ]
-

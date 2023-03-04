@@ -8,14 +8,14 @@ from pprint import pformat
 import interactions
 from dotenv import load_dotenv
 from interactions import Client, ClientPresence, PresenceActivity, PresenceActivityType, Intents, Message, \
-    MessageReaction, get, Embed, EmbedFooter, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, Guild, \
-    Button, ButtonStyle, ComponentContext, Emoji, EmbedField, ActionRow, EmbedImageStruct, spread_to_rows, Component, \
-    SelectMenu, SelectOption, ComponentType, ChannelType, User
+    MessageReaction, get, Embed, EmbedFooter, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, \
+    Guild, Button, ButtonStyle, ComponentContext, Emoji, EmbedField, ActionRow, EmbedImageStruct, spread_to_rows, \
+    Component, SelectMenu, SelectOption, ComponentType, ChannelType, User
 
-from constants import FLAG_DATA_REGIONAL, LANGUAGES
+from constants import FLAG_DATA_REGIONAL
 from translate import translate_text, translation_tostring, detect_text_language
-from utils import EMBED_COLOUR, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name, find_in_list, \
-    AUTO_TRANSLATE_OPTIONS
+from utils import EMBED_COLOUR, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name, \
+    AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, channel_id_name_hashmap
 
 
 def main():
@@ -103,13 +103,19 @@ def main():
                 FLAG_DATA_REGIONAL[emoji],  # target languages
                 message.content  # text to translate
             )
+            if not translation_data:
+                return
             translated_text = await translation_tostring(translation_data)
 
             embed_dict['author'] = EmbedAuthor(name=reaction.member.name)
             embed_dict['description'] = translated_text
+            if 'detectedSourceLanguage' in translation_data[0]:
+                from_lang = f'{get_language_name(translation_data[0]["detectedSourceLanguage"], native_only=True)} → '
+            else:
+                from_lang = ''
+            to_lang = f'{", ".join([get_language_name(e, native_only=True) for e in FLAG_DATA_REGIONAL[emoji]])}'
             embed_dict['footer'] = EmbedFooter(
-                text=f'From {get_language_name(translation_data[0]["detectedSourceLanguage"])} ・ '
-                     f'by {reaction.member.name}'
+                text=f'{from_lang}{to_lang} ・ for {reaction.member.name}'
             )
 
         embed = Embed(**embed_dict)
@@ -187,6 +193,26 @@ def main():
                                  description=f'Automatically translate messages to {full_name}',
                                  default=code in auto_translate_langs))
             return options
+
+        def update_channel_links_list() -> [SelectOption]:
+            print(f'DEBUG: Updating channel links list for {links_selected_channel}')
+            cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = (?)', (links_selected_channel,))
+            query = cursor.fetchall()
+            options = []
+
+            if query:
+                channel_hash = channel_id_name_hashmap(text_channel_list)
+                for row in query:
+                    data = dict(row)
+
+                    options.append(
+                        SelectOption(label=f'#{channel_hash[data["channel_from_id"]]}',
+                                     value=row[2]) for row in query
+
+                    )
+                return options
+            else:
+                pass
 
         guild_data = update_guild_data()
         category_list = [channel for channel in await guild.get_all_channels()
@@ -288,22 +314,11 @@ def main():
                 else:
                     auto_delete_string = get_auto_delete_timer_string(None)
 
-                langs = (
-                    ['`None`'] if not category_data or not category_data['auto_translate']
-                    else [f'`{get_language_name(language)}`'
-                          for language in json.loads(category_data['auto_translate'])]
-                )
-
-                affected_channels = [
-                    f'{channel.mention}' for channel in text_channel_list
-                    if channel.parent_id == selected_category]
-                languages_string = '\n'.join(langs)
-
-                affected_string = '\n'.join(affected_channels) \
-                    if affected_channels else '*No text channels associated with this category.*'
+                langs_string = language_list_string(category_data)
+                affected_string = channel_list_string(text_channel_list, selected_category)
 
                 embed_dict['fields'] = [
-                    EmbedField(name=f'Auto Translation', value=languages_string, inline=True),
+                    EmbedField(name=f'Auto Translation', value=langs_string, inline=True),
                     EmbedField(name='Auto Delete', value=auto_delete_string, inline=True),
                     EmbedField(name='Channels Affected', value=affected_string)
                 ]
@@ -379,15 +394,10 @@ def main():
                 else:
                     auto_delete_string = get_auto_delete_timer_string(None)
 
-                langs = (
-                    ['`None`'] if not channel_data or not channel_data['auto_translate']
-                    else [f'`{get_language_name(language)}`'
-                          for language in json.loads(channel_data['auto_translate'])]
-                )
-                languages_string = '\n'.join(langs)
+                langs_string = language_list_string(channel_data)
 
                 embed_dict['fields'] = [
-                    EmbedField(name=f'Auto Translation', value=languages_string, inline=True),
+                    EmbedField(name=f'Auto Translation', value=langs_string, inline=True),
                     EmbedField(name='Auto Delete', value=auto_delete_string, inline=True)
                 ]
             embed = Embed(**embed_dict)
@@ -410,7 +420,7 @@ def main():
             channel = next(channel for channel in text_channel_list
                            if channel.id == selected_channel)
             if not channel:
-                return create_category_settings_embed()
+                return create_channel_settings_embed()
 
             embed_dict = {
                 'title': f'`{channel.name}` - Edit Channel',
@@ -437,6 +447,36 @@ def main():
                                  label='Back', custom_id='to_channel_settings', emoji=Emoji(id='1075538962787082250'))
             return (embed, spread_to_rows(auto_translate_select, auto_delete_select, back_button),
                     [auto_translate_select, auto_delete_select, back_button])
+
+        async def create_links_settings_embed() -> (Embed, [ActionRow], [Component]):
+
+            embed_dict = {
+                'title': f'`{guild.name}` - Linked Channel Settings',
+                'description': f'You are editing your server\'s linked channels, select a channel below and then use '
+                               f'the second dropdown to select a link from that channel to others.',
+                'color': EMBED_COLOUR,
+                'footer': footer
+            }
+
+            channel_select_links = SelectMenu(
+                placeholder='Select a channel...',
+                custom_id='links_channel_select',
+                type=ComponentType.CHANNEL_SELECT,
+                channel_types=[ChannelType.GUILD_TEXT]
+            )
+            link_select = None
+            if links_selected_channel:
+                link_select = SelectMenu(
+                    placeholder='Select a link configuration...',
+                    custom_id='link_select',
+                    options=[SelectOption(label='test', value='test',
+                                          description='this is a description',
+                                          default=True)]
+                )
+
+            embed = Embed(**embed_dict)
+
+            return embed, spread_to_rows(channel_select_links, link_select), [channel_select_links, link_select]
 
         # endregion
         next_embed, action_rows, all_components = await create_home_embed()
@@ -574,17 +614,20 @@ def main():
                     # endregion
                     # region Links Settings
                     case 'links_settings':
+                        links_selected_channel = None
                         next_embed_function = create_links_settings_embed
-                    case 'to_links_settings':
+                    case 'links_channel_select':
+                        links_selected_channel = button_ctx.data.values[0]
                         next_embed_function = create_links_settings_embed
-                    case 'link_select':
+                    case 'links_link_select':
+                        selected_link = button_ctx.data.values[0]
                         next_embed_function = create_links_settings_embed
                     case 'link_delete':
                         next_embed_function = create_links_settings_embed
                     case 'to_links_create':
-                        next_embed_function = create_links_create_embed
+                        pass
+                        # next_embed_function = create_links_create_embed
                     # endregion
-
 
                     # region Fallback
                     case _:
