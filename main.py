@@ -15,7 +15,7 @@ from interactions import Client, ClientPresence, PresenceActivity, PresenceActiv
 from constants import FLAG_DATA_REGIONAL
 from translate import translate_text, translation_tostring, detect_text_language
 from utils import EMBED_COLOUR, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name, \
-    AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, channel_id_name_hashmap
+    AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links
 
 
 def main():
@@ -194,31 +194,12 @@ def main():
                                  default=code in auto_translate_langs))
             return options
 
-        def update_channel_links_list() -> [SelectOption]:
-            print(f'DEBUG: Updating channel links list for {links_selected_channel}')
-            cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = (?)', (links_selected_channel,))
-            query = cursor.fetchall()
-            options = []
-
-            if query:
-                channel_hash = channel_id_name_hashmap(text_channel_list)
-                for row in query:
-                    data = dict(row)
-
-                    options.append(
-                        SelectOption(label=f'#{channel_hash[data["channel_from_id"]]}',
-                                     value=row[2]) for row in query
-
-                    )
-                return options
-            else:
-                pass
-
         guild_data = update_guild_data()
         category_list = [channel for channel in await guild.get_all_channels()
                          if channel.type == ChannelType.GUILD_CATEGORY]
         text_channel_list = [channel for channel in await guild.get_all_channels()
                              if channel.type == ChannelType.GUILD_TEXT]
+        text_channel_hash = {channel.id: channel for channel in text_channel_list}
         footer = EmbedFooter(text='disclate ・ v1.0')
 
         # region Admin Panel
@@ -469,13 +450,15 @@ def main():
                 cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (links_selected_channel,))
                 links_data = cursor.fetchall()
                 if links_data:
-
+                    links = group_channel_links(links_selected_channel, cursor)
+                    print(links)
+                    select_options = [SelectOption(label='test', value='test',
+                                              description='this is a description',
+                                              default=True) for link in links]
                     link_select = SelectMenu(
                         placeholder='Select a link configuration...',
                         custom_id='link_select',
-                        options=[SelectOption(label='test', value='test',
-                                              description='this is a description',
-                                              default=True)]
+                        options=[]
                     )
 
             embed = Embed(**embed_dict)

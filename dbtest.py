@@ -51,10 +51,9 @@ cursor.execute('''
 ''')
 cursor.execute('''
     CREATE TABLE channel_link (
-        channel_from_id INTEGER REFERENCES channel(id) ON DELETE CASCADE,
-        channel_to_id INTEGER REFERENCES channel(id) ON DELETE CASCADE,
-        languages TEXT NOT NULL,
-        PRIMARY KEY (channel_from_id, channel_to_id)
+        channel_from_id INTEGER NOT NULL,
+        channel_to_id INTEGER NOT NULL,
+        languages TEXT NOT NULL
     )
 ''')
 # endregion
@@ -63,13 +62,16 @@ server_data = [(871132162261397534,), (2,), (3,)]
 cursor.executemany("INSERT INTO guild (id) VALUES (?)", server_data)
 
 lang_str = json.dumps(["en", "fr"])
+lang_str2 = json.dumps(["af", "jv"])
 category_data = [(871132162261397535, lang_str), (2, lang_str), (3, lang_str)]
 cursor.executemany("INSERT INTO category (id, auto_translate) VALUES (?, ?)", category_data)
 
 channel_data = [(1025240272197656598, lang_str), (1030694981624672336, lang_str), (4, lang_str)]
 cursor.executemany("INSERT INTO channel (id, auto_translate) VALUES (?, ?)", channel_data)
-channel_link_data = [(4, 1025240272197656598, lang_str), (1030694981624672336, 1025240272197656598, lang_str),
-                     (4, 1030694981624672336, lang_str), (4, 4, lang_str)]
+channel_link_data = [(1025240272197656598, 1030694981624672336, lang_str),
+                     (1025240272197656598, 1080961573759242310, lang_str2),
+                     (1025240272197656598, 1030695005729333258, lang_str2),
+                     (0, 1071191584953086052, lang_str)]
 cursor.executemany("INSERT INTO channel_link (channel_from_id, channel_to_id, languages) "
                    "VALUES (?, ?, ?)", channel_link_data)
 # Commit the changes to the database

@@ -1,5 +1,6 @@
 import json
 import time
+from sqlite3 import Cursor
 from typing import Any
 
 from interactions import Channel
@@ -91,10 +92,21 @@ def channel_list_string(text_channel_list: [Channel], selected_category: int | s
     return string
 
 
-def channel_id_name_hashmap(channel_list: [Channel]) -> dict:
-    """ Returns a hashmap of channel ids to channel objects """
-    return {channel.id: channel for channel in channel_list}
-
-def group_channel_links(links_query) -> list:
+def group_channel_links(selected_channel, cursor: Cursor) -> list:
     """ Returns a list of lists of channel links, joined on their auto_translate languages"""
+    cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (selected_channel,))
+    links = cursor.fetchall()
+    channel_groups = []
+
+    for link in links:
+        link = dict(link)
+        found_group = False
+        for group in channel_groups:
+            if link['languages'] == group['languages']:
+                group['channels'].append(link['channel_to_id'])
+                found_group = True
+                break
+        if not found_group:
+            channel_groups.append({'channels': [link['channel_to_id']], 'languages': link['languages']})
+    return channel_groups
 
