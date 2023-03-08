@@ -466,13 +466,17 @@ def main():
             )
             link_select = None
             if links_selected_channel:
-                link_select = SelectMenu(
-                    placeholder='Select a link configuration...',
-                    custom_id='link_select',
-                    options=[SelectOption(label='test', value='test',
-                                          description='this is a description',
-                                          default=True)]
-                )
+                cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (links_selected_channel,))
+                links_data = cursor.fetchall()
+                if links_data:
+
+                    link_select = SelectMenu(
+                        placeholder='Select a link configuration...',
+                        custom_id='link_select',
+                        options=[SelectOption(label='test', value='test',
+                                              description='this is a description',
+                                              default=True)]
+                    )
 
             embed = Embed(**embed_dict)
 

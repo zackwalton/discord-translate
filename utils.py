@@ -94,3 +94,7 @@ def channel_list_string(text_channel_list: [Channel], selected_category: int | s
 def channel_id_name_hashmap(channel_list: [Channel]) -> dict:
     """ Returns a hashmap of channel ids to channel objects """
     return {channel.id: channel for channel in channel_list}
+
+def group_channel_links(links_query) -> list:
+    """ Returns a list of lists of channel links, joined on their auto_translate languages"""
+
