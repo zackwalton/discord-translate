@@ -96,6 +96,8 @@ def group_channel_links(selected_channel, cursor: Cursor) -> list:
     """ Returns a list of lists of channel links, joined on their auto_translate languages"""
     cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (selected_channel,))
     links = cursor.fetchall()
+    if not links:
+        return []
     channel_groups = []
 
     for link in links:

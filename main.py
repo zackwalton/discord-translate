@@ -51,6 +51,8 @@ def main():
     async def should_process(reaction: MessageReaction, message: Message, emoji: str):
         if reaction.member.bot:  # reaction was made by a bot
             return False
+        if not message.content:  # message has no content todo check for embed text
+            return False
         if emoji not in FLAG_DATA_REGIONAL and emoji != '🌐':
             return False
         return True
@@ -183,8 +185,11 @@ def main():
             )
             return options
 
-        def update_auto_translation_options(settings_data: dict) -> [SelectOption]:
-            auto_translate_langs = [] if not settings_data['auto_translate'] else settings_data['auto_translate']
+        def update_auto_translation_options(settings_data: dict | None) -> [SelectOption]:
+            if settings_data and settings_data['auto_translate']:
+                auto_translate_langs = settings_data['auto_translate']
+            else:
+                auto_translate_langs = []
             options = []
             for code in AUTO_TRANSLATE_OPTIONS:
                 full_name = get_language_name(code, add_native=True)
@@ -199,7 +204,7 @@ def main():
                          if channel.type == ChannelType.GUILD_CATEGORY]
         text_channel_list = [channel for channel in await guild.get_all_channels()
                              if channel.type == ChannelType.GUILD_TEXT]
-        text_channel_hash = {channel.id: channel for channel in text_channel_list}
+        text_channel_hash = {int(channel.id): channel for channel in text_channel_list}
         footer = EmbedFooter(text='disclate ・ v1.0')
 
         # region Admin Panel
@@ -221,11 +226,11 @@ def main():
 
             labels = ['server', 'categories', 'channels']
             settings_buttons = [
-                Button(style=ButtonStyle.SECONDARY, label=label.title(), custom_id=f'{label}_settings',
+                Button(style=ButtonStyle.SECONDARY, label=label.title(), custom_id=f'to_{label}_settings',
                        emoji=Emoji(id='1075539703014633512')) for label in labels]
 
             linked_channels_button = Button(style=ButtonStyle.SECONDARY, label='Linked Channels',
-                                            custom_id='links_settings', emoji=Emoji(id='1075539703014633512'))
+                                            custom_id='to_links_settings', emoji=Emoji(id='1075539703014633512'))
 
             shop_button = Button(style=ButtonStyle.LINK, label='Buy Tokens', url='https://www.google.com/',
                                  emoji=Emoji(id='1075540183941914788'))
@@ -439,6 +444,8 @@ def main():
                 'footer': footer
             }
 
+            embed = Embed(**embed_dict)
+
             channel_select_links = SelectMenu(
                 placeholder='Select a channel...',
                 custom_id='links_channel_select',
@@ -447,23 +454,67 @@ def main():
             )
             link_select = None
             if links_selected_channel:
-                cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (links_selected_channel,))
-                links_data = cursor.fetchall()
-                if links_data:
-                    links = group_channel_links(links_selected_channel, cursor)
-                    print(links)
-                    select_options = [SelectOption(label='test', value='test',
-                                              description='this is a description',
-                                              default=True) for link in links]
+                links = group_channel_links(links_selected_channel, cursor)
+                print(links)
+                link_options = []
+                for i, link in enumerate(links):
+                    label = '→ ' + ', '.join(['#' + text_channel_hash[channel_to_id].name
+                                              for channel_to_id in link["channels"]])
+                    description = ', '.join([get_language_name(lang)
+                                             for lang in json.loads(link["languages"])])
+                    link_options.append(
+                        SelectOption(label=label, value=i, description=description, default=False))
+
+                if link_options:
                     link_select = SelectMenu(
                         placeholder='Select a link configuration...',
                         custom_id='link_select',
-                        options=[]
+                        options=link_options
                     )
+            back_button = Button(style=ButtonStyle.SECONDARY, label='Back', custom_id='to_homepage',
+                                 emoji=Emoji(id='1075538962787082250'))
+            create_link_button = Button(style=ButtonStyle.SUCCESS, label='New Link', custom_id='to_new_link',
+                                        emoji=Emoji(name='➕'), disabled=not links_selected_channel)
+
+            return (embed, spread_to_rows(channel_select_links, link_select, back_button, create_link_button),
+                    [channel_select_links, link_select, back_button, create_link_button])
+
+        async def create_new_link_embed() -> (Embed, [ActionRow], [Component]):
+            from_channel = text_channel_hash[int(links_selected_channel)]
+            embed_dict = {
+                'title': f'`#{from_channel.name}` - New Link',
+                'description': f'You are creating a link from {from_channel.mention}, select target channels and '
+                               f'languages using the dropdowns below.',
+                'color': EMBED_COLOUR,
+                'footer': footer
+            }
 
             embed = Embed(**embed_dict)
 
-            return embed, spread_to_rows(channel_select_links, link_select), [channel_select_links, link_select]
+            new_link_channel_select = SelectMenu(
+                placeholder='Link channel to...',
+                custom_id='new_link_channel_select',
+                type=ComponentType.CHANNEL_SELECT,
+                channel_types=[ChannelType.GUILD_TEXT],
+                max_values=5  # todo limit to max 5 links
+            )
+
+            new_link_languages_select = SelectMenu(
+                placeholder='Select languages for auto translation...',
+                custom_id='new_link_languages_select',
+                options=auto_translation_options,
+                max_values=3
+            )
+
+            save_disabled = not (new_link_selected_languages and new_link_selected_channels)
+
+            back_button = Button(style=ButtonStyle.SECONDARY, label='Back', custom_id='to_links_settings',
+                                 emoji=Emoji(id='1075538962787082250'))
+            save_button = Button(style=ButtonStyle.SUCCESS, label='Save', custom_id='new_link_save',
+                                 emoji=Emoji(name='✅'), disabled=save_disabled)
+
+            return (embed, spread_to_rows(new_link_channel_select, new_link_languages_select, back_button, save_button),
+                    [new_link_channel_select, new_link_languages_select, back_button, save_button])
 
         # endregion
         next_embed, action_rows, all_components = await create_home_embed()
@@ -485,14 +536,14 @@ def main():
                     case 'to_homepage':
                         guild_data = update_guild_data()
                         next_embed_function = create_home_embed
-                    case 'server_settings':
+                    case 'to_server_settings':
                         guild_data = update_guild_data()
                         auto_delete_options = update_auto_delete_options(guild_data)
                         next_embed_function = create_server_settings_embed
-                    case 'categories_settings':
+                    case 'to_categories_settings':
                         selected_category = None
                         next_embed_function = create_category_settings_embed
-                    case 'channels_settings':
+                    case 'to_channels_settings':
                         selected_channel = None
                         next_embed_function = create_channel_settings_embed
                     # endregion
@@ -600,8 +651,9 @@ def main():
 
                     # endregion
                     # region Links Settings
-                    case 'links_settings':
+                    case 'to_links_settings':
                         links_selected_channel = None
+                        new_link_selected_languages, new_link_selected_channels = None, None
                         next_embed_function = create_links_settings_embed
                     case 'links_channel_select':
                         links_selected_channel = button_ctx.data.values[0]
@@ -611,16 +663,29 @@ def main():
                         next_embed_function = create_links_settings_embed
                     case 'link_delete':
                         next_embed_function = create_links_settings_embed
-                    case 'to_links_create':
-                        pass
-                        # next_embed_function = create_links_create_embed
+
+                    case 'to_new_link':
+                        auto_translation_options = update_auto_translation_options(None)
+                        next_embed_function = create_new_link_embed
+                    case 'new_link_channel_select':
+                        new_link_selected_channels = button_ctx.data.values
+                        next_embed_function = create_new_link_embed
+                    case 'new_link_languages_select':
+                        new_link_selected_languages = button_ctx.data.values
+                        auto_translation_options = update_auto_translation_options(
+                            {'auto_translate': new_link_selected_languages})
+                        next_embed_function = create_new_link_embed
+                    case 'new_link_save':
+                        print(f'DEBUG: creating new link with '
+                              f'{new_link_selected_languages} and {new_link_selected_channels}')
+                        next_embed_function = create_links_settings_embed
                     # endregion
 
                     # region Fallback
                     case _:
                         me: User = await get(client, User, object_id=275018879779078155)
                         await message.edit(embeds=Embed(
-                            description=f'**Uh oh! Something went wrong. '
+                            description=f'**Uh oh! Something went wrong.'
                                         f'Please try using `/{ctx.data.name}` again.**\n\n'
                                         f'*If issues persist, contact {me.mention}*', footer=footer))
                         break

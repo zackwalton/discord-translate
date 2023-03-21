@@ -27,6 +27,7 @@ cursor.execute('''
     CREATE TABLE guild (
         id INTEGER PRIMARY KEY,
         tokens INTEGER NOT NULL DEFAULT 10000,
+        premium BOOL NOT NULL DEFAULT 0,
         flag_translation BOOL NOT NULL DEFAULT 1,
         command_translation BOOL NOT NULL DEFAULT 1,
         characters_translated INTEGER NOT NULL DEFAULT 0,
