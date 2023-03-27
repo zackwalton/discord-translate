@@ -48,13 +48,19 @@ def main():
     # endregion
 
     # region Flag Reactions
-    async def should_process(reaction: MessageReaction, message: Message, emoji: str):
-        if reaction.member.bot:  # reaction was made by a bot
-            return False
+    async def should_process(message: Message, reaction: MessageReaction = None):
+        if reaction:
+            emoji = reaction.emoji.name  # emoji they reacted with
+            if reaction.member.bot:  # reaction was made by a bot
+                return False
+            if emoji not in FLAG_DATA_REGIONAL and emoji != '🌐':
+                return False
+        else:  # no reaction on message
+            if message.author.id == client.me.id:  # message was sent by the bot
+                return False
         if not message.content:  # message has no content todo check for embed text
             return False
-        if emoji not in FLAG_DATA_REGIONAL and emoji != '🌐':
-            return False
+
         return True
 
     @client.event()
@@ -68,7 +74,7 @@ def main():
             object_id=int(reaction.message_id)
         )
 
-        if not await should_process(reaction, message, emoji):
+        if not await should_process(message, reaction=reaction):
             return
 
         try:
@@ -122,6 +128,18 @@ def main():
 
         embed = Embed(**embed_dict)
         await message.reply(embeds=[embed])
+
+    # endregion
+
+    # region Message Event Handler
+    @client.event()
+    async def on_message_create(message: Message):
+        if not await should_process(message):
+            return
+        channel_id = message.channel_id
+        links = cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (channel_id,)).fetchall()
+        for link in
+        await message.reply('test')
 
     # endregion
 
@@ -461,23 +479,27 @@ def main():
                     label = '→ ' + ', '.join(['#' + text_channel_hash[channel_to_id].name
                                               for channel_to_id in link["channels"]])
                     description = ', '.join([get_language_name(lang)
-                                             for lang in json.loads(link["languages"])])
+                                             for lang in link["languages"]])
                     link_options.append(
                         SelectOption(label=label, value=i, description=description, default=False))
 
                 if link_options:
                     link_select = SelectMenu(
                         placeholder='Select a link configuration...',
-                        custom_id='link_select',
+                        custom_id='links_link_select',
                         options=link_options
                     )
             back_button = Button(style=ButtonStyle.SECONDARY, label='Back', custom_id='to_homepage',
                                  emoji=Emoji(id='1075538962787082250'))
             create_link_button = Button(style=ButtonStyle.SUCCESS, label='New Link', custom_id='to_new_link',
                                         emoji=Emoji(name='➕'), disabled=not links_selected_channel)
+            delete_link_button = Button(style=ButtonStyle.DANGER, label='Delete Link', custom_id='delete_link',
+                                        emoji=Emoji(name='✖️'), disabled=not selected_link)
 
-            return (embed, spread_to_rows(channel_select_links, link_select, back_button, create_link_button),
-                    [channel_select_links, link_select, back_button, create_link_button])
+            return (
+                embed,
+                spread_to_rows(channel_select_links, link_select, back_button, create_link_button, delete_link_button),
+                [channel_select_links, link_select, back_button, create_link_button, delete_link_button])
 
         async def create_new_link_embed() -> (Embed, [ActionRow], [Component]):
             from_channel = text_channel_hash[int(links_selected_channel)]
@@ -653,6 +675,7 @@ def main():
                     # region Links Settings
                     case 'to_links_settings':
                         links_selected_channel = None
+                        selected_link = None
                         new_link_selected_languages, new_link_selected_channels = None, None
                         next_embed_function = create_links_settings_embed
                     case 'links_channel_select':
@@ -686,6 +709,10 @@ def main():
                         cursor.executemany('INSERT INTO channel_link VALUES (?, ?, ?)', data)
                         conn.commit()
                         new_link_selected_languages, new_link_selected_channels = None, None
+                        next_embed_function = create_links_settings_embed
+                    case 'delete_link':
+                        # todo delete associated database entries
+                        selected_link = None
                         next_embed_function = create_links_settings_embed
                     # endregion
 
@@ -778,13 +805,6 @@ def main():
                 await button_ctx.edit(components=success_button)  # reply with success
         except asyncio.exceptions.TimeoutError:
             pass
-
-    # endregion
-    # region Listeners
-
-    # @client.event()
-    # async def on_component(ctx: ComponentContext):
-    #     pass
 
     # endregion
 

@@ -102,10 +102,18 @@ def group_channel_links(selected_channel, cursor: Cursor) -> list:
 
     for link in links:
         link = dict(link)
+        link['languages'] = json.loads(link['languages'])
+        link['languages'].sort()
+        print(link)
         found_group = False
         for group in channel_groups:
             if link['languages'] == group['languages']:
                 group['channels'].append(link['channel_to_id'])
+                found_group = True
+                break
+            if link['channel_to_id'] in group['channels']:
+                group['languages'].extend(link['languages'])
+                group['languages'].sort()
                 found_group = True
                 break
         if not found_group:
