@@ -438,7 +438,7 @@ def main():
 
             embed_dict = {
                 'title': f'`{guild.name}` - Linked Channel Settings',
-                'description': f'You are editing your server\'s linked channels, select a channel below and then use '
+                'description': f'You are viewing your server\'s linked channels, select a channel below and then use '
                                f'the second dropdown to select a link from that channel to others.',
                 'color': EMBED_COLOUR,
                 'footer': footer
@@ -676,8 +676,16 @@ def main():
                             {'auto_translate': new_link_selected_languages})
                         next_embed_function = create_new_link_embed
                     case 'new_link_save':
-                        print(f'DEBUG: creating new link with '
-                              f'{new_link_selected_languages} and {new_link_selected_channels}')
+                        print(f'DEBUG: creating new link from {links_selected_channel} to '
+                              f'{new_link_selected_channels} in langs {new_link_selected_languages}')
+
+                        data = [(links_selected_channel, channel_id, json.dumps(new_link_selected_languages))
+                                for channel_id in new_link_selected_channels if channel_id != links_selected_channel]
+                        for d in data:
+                            print(d)
+                        cursor.executemany('INSERT INTO channel_link VALUES (?, ?, ?)', data)
+                        conn.commit()
+                        new_link_selected_languages, new_link_selected_channels = None, None
                         next_embed_function = create_links_settings_embed
                     # endregion
 
