@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from interactions import Client, ClientPresence, PresenceActivity, PresenceActivityType, Intents, Message, \
     MessageReaction, get, Embed, EmbedFooter, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, \
     Guild, Button, ButtonStyle, ComponentContext, Emoji, EmbedField, ActionRow, EmbedImageStruct, spread_to_rows, \
-    Component, SelectMenu, SelectOption, ComponentType, ChannelType, User
+    Component, SelectMenu, SelectOption, ComponentType, ChannelType, User, Channel
 
 from constants import FLAG_DATA_REGIONAL
 from translate import translate_text, translation_tostring, detect_text_language
@@ -47,7 +47,6 @@ def main():
 
     # endregion
 
-    # region Flag Reactions
     async def should_process(message: Message, reaction: MessageReaction = None):
         if reaction:
             emoji = reaction.emoji.name  # emoji they reacted with
@@ -62,6 +61,8 @@ def main():
             return False
 
         return True
+
+    # region Flag Reactions
 
     @client.event()
     async def on_message_reaction_add(reaction: MessageReaction):
@@ -137,8 +138,16 @@ def main():
         if not await should_process(message):
             return
         channel_id = message.channel_id
-        links = cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (channel_id,)).fetchall()
-        for link in
+        links = [dict(link) for link in
+                 cursor.execute(
+                     'SELECT * FROM channel_link WHERE channel_from_id = ?',
+                     (channel_id,))
+                 .fetchall()]
+        for link in links:
+            channel_to_id = link['channel_to_id']
+            channel_to: Channel = await get(client, Channel, object_id=int(channel_to_id))
+            if channel_to.type == ChannelType.GUILD_TEXT:
+                await channel_to.send(message.content)
         await message.reply('test')
 
     # endregion
