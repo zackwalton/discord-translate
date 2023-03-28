@@ -16,13 +16,15 @@ conn.row_factory = sqlite3.Row
 # Create a cursor to execute SQL statements
 cursor = conn.cursor()
 
+# delete tables
 cursor.execute('PRAGMA foreign_keys = ON;')
 cursor.execute('DROP TABLE IF EXISTS guild')
 cursor.execute('DROP TABLE IF EXISTS category')
 cursor.execute('DROP TABLE IF EXISTS channel')
 cursor.execute('DROP TABLE IF EXISTS channel_link')
+cursor.execute('DROP TABLE IF EXISTS thread')
 
-# Execute some SQL statements
+# recreate tables
 cursor.execute('''
     CREATE TABLE guild (
         id INTEGER PRIMARY KEY,
@@ -57,6 +59,12 @@ cursor.execute('''
         languages TEXT NOT NULL
     )
 ''')
+cursor.execute('''
+    CREATE TABLE thread (
+        thread_id INTEGER NOT NULL,
+        languages TEXT NOT NULL
+    )
+''')
 # endregion
 
 server_data = [(871132162261397534,), (2,), (3,)]
@@ -75,6 +83,9 @@ channel_link_data = [(1025240272197656598, 1030694981624672336, lang_str),
                      (0, 1071191584953086052, lang_str)]
 cursor.executemany("INSERT INTO channel_link (channel_from_id, channel_to_id, languages) "
                    "VALUES (?, ?, ?)", channel_link_data)
+
+thread_data = [(1090419079015317547, lang_str)]
+cursor.executemany("INSERT INTO thread (thread_id, languages) VALUES (?, ?)", thread_data)
 # Commit the changes to the database
 conn.commit()
 
@@ -82,6 +93,7 @@ print_table_data("guild")
 print_table_data("category")
 print_table_data("channel")
 print_table_data("channel_link")
+print_table_data("thread")
 
 print('\n\n')
 categories = (871132162261397535, 871132162261397536, 1071191623196737647)

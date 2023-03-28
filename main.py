@@ -10,11 +10,11 @@ from dotenv import load_dotenv
 from interactions import Client, ClientPresence, PresenceActivity, PresenceActivityType, Intents, Message, \
     MessageReaction, get, Embed, EmbedFooter, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, \
     Guild, Button, ButtonStyle, ComponentContext, Emoji, EmbedField, ActionRow, EmbedImageStruct, spread_to_rows, \
-    Component, SelectMenu, SelectOption, ComponentType, ChannelType, User, Channel
+    Component, SelectMenu, SelectOption, ComponentType, ChannelType, User, Channel, Thread
 
 from constants import FLAG_DATA_REGIONAL
 from translate import translate_text, translation_tostring, detect_text_language
-from utils import EMBED_COLOUR, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name, \
+from utils import EMBED_COLOUR, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name, \
     AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links
 
 
@@ -134,7 +134,7 @@ def main():
 
     # region Message Event Handler
     @client.event()
-    async def on_message_create(message: Message):
+    async def on_message_create2(message: Message):
         if not await should_process(message):
             return
         channel_id = message.channel_id
@@ -149,6 +149,41 @@ def main():
             if channel_to.type == ChannelType.GUILD_TEXT:
                 await channel_to.send(message.content)
         await message.reply('test')
+
+    # endregion
+
+    # region Thread Event Handler
+
+    async def create_thread_select_menu(selected: [] = None):
+        selected = selected if selected else []
+        return SelectMenu(
+            custom_id='thread_auto_translation',
+            placeholder='Select languages for auto-translation...',
+            min_values=0,
+            max_values=2,
+            options=[
+                SelectOption(label='English', value='en', emoji=Emoji(name='🇬🇧'), default='en' in selected),
+                SelectOption(label='German', value='de', emoji=Emoji(name='🇩🇪'), default='de' in selected),
+                SelectOption(label='French', value='fr', emoji=Emoji(name='🇫🇷'), default='fr' in selected),
+                SelectOption(label='Spanish', value='es', emoji=Emoji(name='🇪🇸'), default='es' in selected),
+            ]
+        )
+
+    thread_translation_message = 'Choose auto-translation languages for messages in this thread!'
+
+    @client.event()
+    async def on_thread_create(thread: Thread):
+        if not thread.newly_created:
+            return
+        print('DEBUG: Thread created!')
+        select_menu = await create_thread_select_menu()
+        await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
+
+    @client.component('thread_auto_translation')
+    async def thread_auto_translation(ctx: ComponentContext, values: [] = None):
+        print('DEBUG: Thread auto translation languages: ', values)
+        select_menu = await create_thread_select_menu(values)
+        await ctx.edit(thread_translation_message, components=select_menu)
 
     # endregion
 
@@ -232,7 +267,6 @@ def main():
         text_channel_list = [channel for channel in await guild.get_all_channels()
                              if channel.type == ChannelType.GUILD_TEXT]
         text_channel_hash = {int(channel.id): channel for channel in text_channel_list}
-        footer = EmbedFooter(text='disclate ・ v1.0')
 
         # region Admin Panel
         async def create_home_embed() -> (Embed, [ActionRow], [Component]):
@@ -247,7 +281,7 @@ def main():
                                inline=True)
                 ],
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
             embed = Embed(**embed_dict)
 
@@ -287,7 +321,7 @@ def main():
                     EmbedField(name='Command Translation', value='Active' if cmd_t else 'Not active', inline=True)
                 ],
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
             embed = Embed(**embed_dict)
             print(F'AUTO DELETE OPTIONS: {auto_delete_options}')
@@ -313,7 +347,7 @@ def main():
                                f'affect a categories and all the channels under it. '
                                f'\n\nChoose a category from the dropdown to view its configuration.',
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
             disable_reset_button, disable_edit_button = True, True
             if selected_category:
@@ -365,7 +399,7 @@ def main():
                                '`Auto Translation` Dropdown for automatic translation languages.\n'
                                '`Auto Delete` Dropdown for translation message lifetime.',
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
             embed = Embed(**embed_dict)
             auto_translate_select = SelectMenu(
@@ -393,7 +427,7 @@ def main():
                                f'affect a single channel.'
                                f'\n\nChoose a channel from the dropdown to view its configuration.',
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
             disable_reset_button, disable_edit_button = True, True
             if selected_channel:
@@ -442,7 +476,7 @@ def main():
                                '`Auto Translation` Dropdown for automatic translation languages.\n'
                                '`Auto Delete` Dropdown for translation message lifetime.',
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
             embed = Embed(**embed_dict)
             auto_translate_select = SelectMenu(
@@ -468,7 +502,7 @@ def main():
                 'description': f'You are viewing your server\'s linked channels, select a channel below and then use '
                                f'the second dropdown to select a link from that channel to others.',
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
 
             embed = Embed(**embed_dict)
@@ -517,7 +551,7 @@ def main():
                 'description': f'You are creating a link from {from_channel.mention}, select target channels and '
                                f'languages using the dropdowns below.',
                 'color': EMBED_COLOUR,
-                'footer': footer
+                'footer': FOOTER
             }
 
             embed = Embed(**embed_dict)
@@ -731,7 +765,7 @@ def main():
                         await message.edit(embeds=Embed(
                             description=f'**Uh oh! Something went wrong.'
                                         f'Please try using `/{ctx.data.name}` again.**\n\n'
-                                        f'*If issues persist, contact {me.mention}*', footer=footer))
+                                        f'*If issues persist, contact {me.mention}*', footer=FOOTER))
                         break
                     # endregion
                 next_embed, action_rows, all_components = await next_embed_function()

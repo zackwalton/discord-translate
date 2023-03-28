@@ -3,11 +3,12 @@ import time
 from sqlite3 import Cursor
 from typing import Any
 
-from interactions import Channel
+from interactions import Channel, EmbedFooter
 
 from constants import LANGUAGES
 
 EMBED_COLOUR = 0x56b0fd
+FOOTER = EmbedFooter(text='disclate ・ v1.0')
 
 AUTO_DELETE_TIMERS = [
     ('30 Seconds', 30),
