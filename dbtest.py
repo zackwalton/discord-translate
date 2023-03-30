@@ -84,7 +84,7 @@ channel_link_data = [(1025240272197656598, 1030694981624672336, lang_str),
 cursor.executemany("INSERT INTO channel_link (channel_from_id, channel_to_id, languages) "
                    "VALUES (?, ?, ?)", channel_link_data)
 
-thread_data = [(1090419079015317547, lang_str)]
+thread_data = [(1091048432036216884, lang_str)]
 cursor.executemany("INSERT INTO thread (thread_id, languages) VALUES (?, ?)", thread_data)
 # Commit the changes to the database
 conn.commit()
