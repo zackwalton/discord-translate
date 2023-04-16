@@ -1,11 +1,12 @@
 import json
 import time
+from datetime import datetime, timedelta
 from sqlite3 import Cursor
 from typing import Any
 
 from interactions import Channel, EmbedFooter
 
-from constants import LANGUAGES
+from const import LANGUAGES
 
 EMBED_COLOUR = 0x56b0fd
 FOOTER = EmbedFooter(text='disclate ・ v1.0')
@@ -121,3 +122,7 @@ def group_channel_links(selected_channel, cursor: Cursor) -> list:
             channel_groups.append({'channels': [link['channel_to_id']], 'languages': link['languages']})
     return channel_groups
 
+
+def db_timestamp(days_offset: int = 0):
+    """ Returns the current timestamp in the TEXT format used by the database """
+    return (datetime.now() - timedelta(days=days_offset)).strftime('%Y-%m-%d')

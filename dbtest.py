@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from datetime import datetime
 
 
 def print_table_data(name: str):
@@ -61,8 +62,9 @@ cursor.execute('''
 ''')
 cursor.execute('''
     CREATE TABLE thread (
-        thread_id INTEGER NOT NULL,
-        languages TEXT NOT NULL
+        thread_id INTEGER PRIMARY KEY,
+        languages TEXT NOT NULL,
+        last_used TEXT NOT NULL
     )
 ''')
 # endregion
@@ -84,8 +86,8 @@ channel_link_data = [(1025240272197656598, 1030694981624672336, lang_str),
 cursor.executemany("INSERT INTO channel_link (channel_from_id, channel_to_id, languages) "
                    "VALUES (?, ?, ?)", channel_link_data)
 
-thread_data = [(1091048432036216884, lang_str)]
-cursor.executemany("INSERT INTO thread (thread_id, languages) VALUES (?, ?)", thread_data)
+thread_data = [(1091048432036216884, lang_str, datetime.now().strftime('%Y-%m-%d'))]
+cursor.executemany("INSERT INTO thread (thread_id, languages, last_used) VALUES (?, ?, ?)", thread_data)
 # Commit the changes to the database
 conn.commit()
 

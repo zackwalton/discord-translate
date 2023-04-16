@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import re
 import sqlite3
@@ -8,23 +7,24 @@ from pprint import pformat
 import interactions
 from dotenv import load_dotenv
 from interactions import Client, ClientPresence, PresenceActivity, PresenceActivityType, Intents, Message, \
-    MessageReaction, get, Embed, EmbedFooter, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, \
+    MessageReaction, get, Embed, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, \
     Guild, Button, ButtonStyle, ComponentContext, Emoji, EmbedField, ActionRow, EmbedImageStruct, spread_to_rows, \
-    Component, SelectMenu, SelectOption, ComponentType, ChannelType, User, Channel, Thread
+    Component, SelectMenu, SelectOption, ComponentType, ChannelType, Thread
 
-from constants import FLAG_DATA_REGIONAL
+from const import FLAG_DATA_REGIONAL
 from translate import translate_text, translation_tostring, detect_text_language
-from utils import EMBED_COLOUR, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name, \
-    AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links
+from utils import *
 
 
 def main():
     # region Start Bot
     load_dotenv('.env')
     token = os.getenv('DISCORD_TOKEN')
+
     conn = sqlite3.connect("database.db")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    cursor.execute('PRAGMA foreign_keys = ON')  # enable foreign key constraints
 
     presence = ClientPresence(
         activities=[
@@ -79,6 +79,7 @@ def main():
             return
 
         try:
+            # noinspection PyProtectedMember
             referenced_message: Message = await get(
                 client, Message,
                 parent_id=int(reaction.channel_id),
@@ -102,7 +103,7 @@ def main():
             elif confidence <= 70:
                 detection_text = f'I am only {confidence_percent} sure the language is {result["language"]}'
             elif confidence <= 100:
-                detection_text = f'This text is in `{result["language"]}`'
+                detection_text = f'This text is in `{get_language_name(result["language"], add_native=True)}`'
 
             embed_dict['description'] = detection_text
             embed_dict['footer'] = EmbedFooter(text=f'{reaction.member.name} ・ {confidence_percent} Confident')
@@ -132,27 +133,47 @@ def main():
 
     # endregion
 
-    # region Message Event Handler
+    # region Message Events
     @client.event()
-    async def on_message_create2(message: Message):
+    async def on_message_create(message: Message):
         if not await should_process(message):
             return
         channel_id = message.channel_id
-        links = [dict(link) for link in
-                 cursor.execute(
-                     'SELECT * FROM channel_link WHERE channel_from_id = ?',
-                     (channel_id,))
-                 .fetchall()]
-        for link in links:
-            channel_to_id = link['channel_to_id']
-            channel_to: Channel = await get(client, Channel, object_id=int(channel_to_id))
-            if channel_to.type == ChannelType.GUILD_TEXT:
-                await channel_to.send(message.content)
-        await message.reply('test')
+        channel: Channel = await get(client, Channel, object_id=int(channel_id))
+        match channel.type:
+            # region Text Channel Message Event
+            case ChannelType.GUILD_TEXT:  # message sent in a text channel
+                print(f'DEBUG: Message sent in text channel `{channel.name}` ({channel.id})')
+                links = cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?;', (str(channel_id),))
+                links = [dict(link) for link in links.fetchall()]
+                if not links:
+                    return
+
+                for link_data in links:
+                    # for channel in link_data['channels']:
+                    #     pass
+                    embed_dict: dict = {
+                        "color": EMBED_COLOUR,
+                        "author": EmbedAuthor(name=message.member.name),  # todo add avatar url
+                    }
+                    translation_data = await translate_text(
+                        [],  # target languages
+                        message.content  # text to translate
+                    )
+                    channel_to_id = link_data['channel_to_id']
+                    channel_to: Channel = await get(client, Channel, object_id=int(channel_to_id))
+                    if channel_to.type == ChannelType.GUILD_TEXT:
+                        print(message.content)
+                        await channel_to.send(message.content)
+                # endregion
+
+            # region Thread Message Event
+            case ChannelType.GUILD_FORUM | ChannelType.PUBLIC_THREAD | ChannelType.PRIVATE_THREAD:  # message sent in a guild forum text_channel
+                print(f'DEBUG: Message sent in thread `{channel.name}` ({channel.id})')
 
     # endregion
 
-    # region Thread Event Handler
+    # region Thread Events
 
     async def create_thread_select_menu(selected: [] = None):
         selected = selected if selected else []
@@ -175,21 +196,46 @@ def main():
     async def on_thread_create(thread: Thread):
         if not thread.newly_created:
             return
-        print('DEBUG: Thread created!')
+        print(f'DEBUG: Thread created, id: {thread.id}')
         select_menu = await create_thread_select_menu()
-        await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
+        await asyncio.sleep(0.5)  # wait for thread to be created and first message to send
+        try:
+            message = await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
+        except interactions.LibraryException:  # avoid exception raised when send is too fast
+            await asyncio.sleep(5)
+            message = await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
+
+        await message.pin()  # pin the message in the thread
 
     @client.component('thread_auto_translation')
     async def thread_auto_translation(ctx: ComponentContext, values: [] = None):
+        if ctx.author.id != ctx.channel.owner_id:
+            has_perms = await ctx.author.has_permissions(
+                Permissions.MANAGE_THREADS,
+                Permissions.MANAGE_CHANNELS,
+                Permissions.ADMINISTRATOR,
+                channel=ctx.channel,
+                guild_id=ctx.guild.id,
+                operator="or")
+            if not has_perms:
+                await ctx.send('❌ Only the thread owner and server admins can change the '
+                               'auto-translation settings for this thread!', ephemeral=True)
+                return
         print('DEBUG: Thread auto translation languages: ', values)
         select_menu = await create_thread_select_menu(values)
         await ctx.edit(thread_translation_message, components=select_menu)
+        if values:
+            cursor.execute('REPLACE INTO thread VALUES (?, ?, ?);',
+                           (str(ctx.channel.id), json.dumps(values), db_timestamp()))
+        else:
+            cursor.execute('DELETE FROM thread WHERE thread_id = ?;', (str(ctx.channel.id),))
+        conn.commit()
 
     # endregion
 
     # region Commands
     @client.command(name='t')
-    async def translate_command(ctx: CommandContext):
+    async def translate_command(_: CommandContext):
         pass
 
     @translate_command.subcommand(name='text')
@@ -352,16 +398,16 @@ def main():
             disable_reset_button, disable_edit_button = True, True
             if selected_category:
                 cursor.execute('SELECT * FROM category WHERE id = ?', (selected_category,))
-                category_data = cursor.fetchone()
+                selected_category_data = cursor.fetchone()
                 disable_edit_button = False
-                if category_data:
-                    category_data = dict(category_data)
-                    auto_delete_string = get_auto_delete_timer_string(category_data['auto_delete_cd'])
+                if selected_category_data:
+                    selected_category_data = dict(selected_category_data)
+                    auto_delete_string = get_auto_delete_timer_string(selected_category_data['auto_delete_cd'])
                     disable_reset_button = False
                 else:
                     auto_delete_string = get_auto_delete_timer_string(None)
 
-                langs_string = language_list_string(category_data)
+                langs_string = language_list_string(selected_category_data)
                 affected_string = channel_list_string(text_channel_list, selected_category)
 
                 embed_dict['fields'] = [
@@ -432,16 +478,16 @@ def main():
             disable_reset_button, disable_edit_button = True, True
             if selected_channel:
                 cursor.execute('SELECT * FROM channel WHERE id = ?', (selected_channel,))
-                channel_data = cursor.fetchone()
+                selected_channel_data = cursor.fetchone()
                 disable_edit_button = False
-                if channel_data:
-                    channel_data = dict(channel_data)
-                    auto_delete_string = get_auto_delete_timer_string(channel_data['auto_delete_cd'])
+                if selected_channel_data:
+                    selected_channel_data = dict(selected_channel_data)
+                    auto_delete_string = get_auto_delete_timer_string(selected_channel_data['auto_delete_cd'])
                     disable_reset_button = False
                 else:
                     auto_delete_string = get_auto_delete_timer_string(None)
 
-                langs_string = language_list_string(channel_data)
+                langs_string = language_list_string(selected_channel_data)
 
                 embed_dict['fields'] = [
                     EmbedField(name=f'Auto Translation', value=langs_string, inline=True),
@@ -761,11 +807,10 @@ def main():
 
                     # region Fallback
                     case _:
-                        me: User = await get(client, User, object_id=275018879779078155)
                         await message.edit(embeds=Embed(
-                            description=f'**Uh oh! Something went wrong.'
-                                        f'Please try using `/{ctx.data.name}` again.**\n\n'
-                                        f'*If issues persist, contact {me.mention}*', footer=FOOTER))
+                            description=f'**Uh oh! Something went wrong. '
+                                        f'Please try using </{ctx.data.name}:{ctx.data.id}> again.**\n\n'
+                                        f'*If issues persist, contact* <@275018879779078155>', footer=FOOTER))
                         break
                     # endregion
                 next_embed, action_rows, all_components = await next_embed_function()
@@ -773,8 +818,8 @@ def main():
 
             except asyncio.TimeoutError:
                 await message.edit(embeds=Embed(
-                    description=f'**Your session has expired, please use `/{ctx.data.name}` again if you would '
-                                f'like to continue.**'))
+                    description=f'**Your session has expired, please use </{ctx.data.name}:{ctx.data.id}> '
+                                f'again if you would like to continue.**'))
                 break
 
     @client.command(

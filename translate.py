@@ -6,9 +6,9 @@ import six
 from dotenv import load_dotenv
 from google.api_core.exceptions import BadRequest
 from google.cloud import translate_v2 as translate
-from utils import get_language_name
 
-from constants import LANGUAGES, GPT_LANGUAGES
+from const import GPT_LANGUAGES
+from utils import get_language_name
 
 load_dotenv()
 GOOGLE_APPLICATION_CREDENTIALS = os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_account.json"
@@ -43,7 +43,7 @@ async def translate_text(targets: [str], text: str) -> [dict]:
         try:
             start_time = time.time()
             if target in GPT_LANGUAGES:
-                response = (await gpt_translate(text, target))['choices'][0]['message']['content']
+                response = (await gpt_translate(text, target))['choices'][0]['message']['content'].strip('"')
                 # response = response.replace('\n', '')
                 result = {'translatedText': response}
             else:
@@ -68,7 +68,7 @@ async def gpt_translate(text: str, target: str) -> dict:
     response = openai.ChatCompletion.create(
         model='gpt-3.5-turbo',
         messages=[
-            {'role': 'system', 'content': prompt}
+            {'role': 'user', 'content': prompt}
         ]
     )
     print(response)
