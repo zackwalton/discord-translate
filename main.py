@@ -1,92 +1,79 @@
 import asyncio
+import json
+import logging
 import os
 import re
 import sqlite3
 from pprint import pformat
 
-import interactions
 from dotenv import load_dotenv
-from interactions import Client, ClientPresence, PresenceActivity, PresenceActivityType, Intents, Message, \
-    MessageReaction, get, Embed, EmbedAuthor, CommandContext, OptionType, Permissions, Member, Role, \
-    Guild, Button, ButtonStyle, ComponentContext, Emoji, EmbedField, ActionRow, EmbedImageStruct, spread_to_rows, \
-    Component, SelectMenu, SelectOption, ComponentType, ChannelType, Thread
+from interactions import (
+    Client, Intents, Message, Embed, EmbedFooter, EmbedAuthor, OptionType, Permissions, Member, ChannelSelectMenu,
+    Guild, Button, ButtonStyle, ComponentContext, EmbedField, ActionRow, spread_to_rows, ChannelType, Activity,
+    ActivityType, GuildText, StringSelectMenu, StringSelectOption, PartialEmoji,
+    ThreadChannel, SlashContext, slash_command, component_callback, listen, subcommand, slash_option, EmbedAttachment)
+from interactions.api.events import Startup, MessageReactionAdd, Component
 
-from const import FLAG_DATA_REGIONAL
+from constants import FLAG_DATA_REGIONAL
 from translate import translate_text, translation_tostring, detect_text_language
-from utils import *
+from utils import (
+    EMBED_COLOUR, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name,
+    AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links)
 
 
 def main():
     # region Start Bot
     load_dotenv('.env')
     token = os.getenv('DISCORD_TOKEN')
-
     conn = sqlite3.connect("database.db")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute('PRAGMA foreign_keys = ON')  # enable foreign key constraints
-
-    presence = ClientPresence(
-        activities=[
-            PresenceActivity(
-                type=PresenceActivityType.WATCHING, name="for language barriers!"
-            )
-        ]
-    )
 
     client = Client(
         token=token,
-        intents=Intents.DEFAULT | Intents.GUILD_MESSAGE_CONTENT,
-        presence=presence,
-        default_scope=871132162261397534  # TODO remove when going live
+        intents=(Intents.DEFAULT | Intents.MESSAGE_CONTENT | Intents.GUILD_MESSAGE_REACTIONS),
+        activity=Activity(type=ActivityType.WATCHING, name="for language barriers!")
     )
 
-    @client.event
-    async def on_start():
+    @listen()
+    async def on_ready():
         print("Bot has been launched successfully.")
 
     # endregion
 
-    async def should_process(message: Message, reaction: MessageReaction = None):
+    async def should_process(message: Message, reaction: MessageReactionAdd = None):
         if reaction:
             emoji = reaction.emoji.name  # emoji they reacted with
-            if reaction.member.bot:  # reaction was made by a bot
+            if reaction.author.bot:  # reaction was made by a bot
+                return False
+            if reaction.reaction_count > 1:  # reaction was already made
                 return False
             if emoji not in FLAG_DATA_REGIONAL and emoji != '🌐':
                 return False
         else:  # no reaction on message
             if message.author.id == client.me.id:  # message was sent by the bot
                 return False
-        if not message.content:  # message has no content todo check for embed text
+        if not message.content:  # message has no content
             return False
 
         return True
 
     # region Flag Reactions
 
-    @client.event()
-    async def on_message_reaction_add(reaction: MessageReaction):
+    @listen(MessageReactionAdd)
+    async def on_message_reaction_add(reaction: MessageReactionAdd):
+        print('got reaction')
         emoji = reaction.emoji.name  # emoji they reacted with
-
-        # message they reacted to
-        message: Message = await get(
-            client, Message,
-            parent_id=int(reaction.channel_id),
-            object_id=int(reaction.message_id)
-        )
+        message = reaction.message
 
         if not await should_process(message, reaction=reaction):
             return
 
         try:
-            # noinspection PyProtectedMember
-            referenced_message: Message = await get(
-                client, Message,
-                parent_id=int(reaction.channel_id),
-                object_id=message._json["referenced_message"]["id"]  # required workaround
-            )
+            referenced_message: Message = await message.fetch_referenced_message()
             # update translated message to the original message if reaction on translation message
-            message = referenced_message if client.me.id == message.author.id else message
+            if referenced_message and client.me.id == message.author.id:
+                message = referenced_message
 
         except (TypeError, KeyError):
             pass
@@ -103,10 +90,11 @@ def main():
             elif confidence <= 70:
                 detection_text = f'I am only {confidence_percent} sure the language is {result["language"]}'
             elif confidence <= 100:
-                detection_text = f'This text is in `{get_language_name(result["language"], add_native=True)}`'
+                detection_text = f'This text is in `{result["language"]}`'
 
             embed_dict['description'] = detection_text
-            embed_dict['footer'] = EmbedFooter(text=f'{reaction.member.name} ・ {confidence_percent} Confident')
+            embed_dict['footer'] = EmbedFooter(
+                text=f'{reaction.author.global_name}・ {confidence_percent} Confident')
 
         else:  # text translation
             translation_data = await translate_text(
@@ -117,7 +105,7 @@ def main():
                 return
             translated_text = await translation_tostring(translation_data)
 
-            embed_dict['author'] = EmbedAuthor(name=reaction.member.name)
+            embed_dict['author'] = EmbedAuthor(name=reaction.author.global_name)
             embed_dict['description'] = translated_text
             if 'detectedSourceLanguage' in translation_data[0]:
                 from_lang = f'{get_language_name(translation_data[0]["detectedSourceLanguage"], native_only=True)} → '
@@ -125,7 +113,7 @@ def main():
                 from_lang = ''
             to_lang = f'{", ".join([get_language_name(e, native_only=True) for e in FLAG_DATA_REGIONAL[emoji]])}'
             embed_dict['footer'] = EmbedFooter(
-                text=f'{from_lang}{to_lang} ・ for {reaction.member.name}'
+                text=f'{from_lang}{to_lang} ・ for {reaction}'
             )
 
         embed = Embed(**embed_dict)
@@ -133,122 +121,85 @@ def main():
 
     # endregion
 
-    # region Message Events
+    # region Message Event Handler
     @client.event()
-    async def on_message_create(message: Message):
+    async def on_message_create2(message: Message):
         if not await should_process(message):
             return
-        channel_id = message.channel_id
-        channel: Channel = await get(client, Channel, object_id=int(channel_id))
-        match channel.type:
-            # region Text Channel Message Event
-            case ChannelType.GUILD_TEXT:  # message sent in a text channel
-                print(f'DEBUG: Message sent in text channel `{channel.name}` ({channel.id})')
-                links = cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?;', (str(channel_id),))
-                links = [dict(link) for link in links.fetchall()]
-                if not links:
-                    return
-
-                for link_data in links:
-                    # for channel in link_data['channels']:
-                    #     pass
-                    embed_dict: dict = {
-                        "color": EMBED_COLOUR,
-                        "author": EmbedAuthor(name=message.member.name),  # todo add avatar url
-                    }
-                    translation_data = await translate_text(
-                        [],  # target languages
-                        message.content  # text to translate
-                    )
-                    channel_to_id = link_data['channel_to_id']
-                    channel_to: Channel = await get(client, Channel, object_id=int(channel_to_id))
-                    if channel_to.type == ChannelType.GUILD_TEXT:
-                        print(message.content)
-                        await channel_to.send(message.content)
-                # endregion
-
-            # region Thread Message Event
-            case ChannelType.GUILD_FORUM | ChannelType.PUBLIC_THREAD | ChannelType.PRIVATE_THREAD:  # message sent in a guild forum text_channel
-                print(f'DEBUG: Message sent in thread `{channel.name}` ({channel.id})')
+        channel_id = message.channel.id
+        links = [dict(link) for link in
+                 cursor.execute(
+                     'SELECT * FROM channel_link WHERE channel_from_id = ?',
+                     (channel_id,))
+                 .fetchall()]
+        for link in links:
+            channel_to_id = link['channel_to_id']
+            channel_to: GuildText = await client.fetch_channel(channel_to_id)
+            if channel_to.type == ChannelType.GUILD_TEXT:
+                await channel_to.send(message.content)
+        await message.reply('test')
 
     # endregion
 
-    # region Thread Events
+    # region Thread Event Handler
 
     async def create_thread_select_menu(selected: [] = None):
         selected = selected if selected else []
-        return SelectMenu(
+        return StringSelectMenu(
+            *[
+                StringSelectOption(label='English', value='en', emoji=PartialEmoji(name='🇬🇧'),
+                                   default='en' in selected),
+                StringSelectOption(label='German', value='de', emoji=PartialEmoji(name='🇩🇪'), default='de' in selected),
+                StringSelectOption(label='French', value='fr', emoji=PartialEmoji(name='🇫🇷'), default='fr' in selected),
+                StringSelectOption(label='Spanish', value='es', emoji=PartialEmoji(name='🇪🇸'),
+                                   default='es' in selected),
+            ],
             custom_id='thread_auto_translation',
             placeholder='Select languages for auto-translation...',
             min_values=0,
-            max_values=2,
-            options=[
-                SelectOption(label='English', value='en', emoji=Emoji(name='🇬🇧'), default='en' in selected),
-                SelectOption(label='German', value='de', emoji=Emoji(name='🇩🇪'), default='de' in selected),
-                SelectOption(label='French', value='fr', emoji=Emoji(name='🇫🇷'), default='fr' in selected),
-                SelectOption(label='Spanish', value='es', emoji=Emoji(name='🇪🇸'), default='es' in selected),
-            ]
+            max_values=2
         )
 
     thread_translation_message = 'Choose auto-translation languages for messages in this thread!'
 
-    @client.event()
-    async def on_thread_create(thread: Thread):
-        if not thread.newly_created:
-            return
-        print(f'DEBUG: Thread created, id: {thread.id}')
+    @listen()
+    async def on_thread_create(thread: ThreadChannel):
+        print('DEBUG: Thread created!')
         select_menu = await create_thread_select_menu()
-        await asyncio.sleep(0.5)  # wait for thread to be created and first message to send
-        try:
-            message = await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
-        except interactions.LibraryException:  # avoid exception raised when send is too fast
-            await asyncio.sleep(5)
-            message = await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
+        await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
 
-        await message.pin()  # pin the message in the thread
-
-    @client.component('thread_auto_translation')
+    @component_callback('thread_auto_translation')
     async def thread_auto_translation(ctx: ComponentContext, values: [] = None):
-        if ctx.author.id != ctx.channel.owner_id:
-            has_perms = await ctx.author.has_permissions(
-                Permissions.MANAGE_THREADS,
-                Permissions.MANAGE_CHANNELS,
-                Permissions.ADMINISTRATOR,
-                channel=ctx.channel,
-                guild_id=ctx.guild.id,
-                operator="or")
-            if not has_perms:
-                await ctx.send('❌ Only the thread owner and server admins can change the '
-                               'auto-translation settings for this thread!', ephemeral=True)
-                return
         print('DEBUG: Thread auto translation languages: ', values)
         select_menu = await create_thread_select_menu(values)
         await ctx.edit(thread_translation_message, components=select_menu)
-        if values:
-            cursor.execute('REPLACE INTO thread VALUES (?, ?, ?);',
-                           (str(ctx.channel.id), json.dumps(values), db_timestamp()))
-        else:
-            cursor.execute('DELETE FROM thread WHERE thread_id = ?;', (str(ctx.channel.id),))
-        conn.commit()
 
     # endregion
 
     # region Commands
-    @client.command(name='t')
-    async def translate_command(_: CommandContext):
+    @slash_command(name='t', description="base command")
+    async def translate_command(_: SlashContext):
         pass
 
-    @translate_command.subcommand(name='text')
-    @interactions.option(description='Text to translate', required=True)
-    @interactions.option(description='Target languages', required=True)
-    async def text_command(ctx: CommandContext, text: str = None, languages: str = None):
+    @translate_command.subcommand(sub_cmd_name="text", sub_cmd_description="Translate text")
+    @slash_option(
+        name="text",
+        description='Text to translate',
+        required=True,
+        opt_type=OptionType.STRING)
+    @slash_option(
+        name="languages",
+        description='Target languages',
+        required=True,
+        opt_type=OptionType.STRING)
+    async def text_command(ctx: SlashContext, text: str = None, languages: str = None):
         await ctx.send(f"You selected the command_name sub command and put in {text} and "
                        f"{re.findall('[a-z]{2}', languages)}")
 
-    @client.command(name='admin', default_member_permissions=Permissions.ADMINISTRATOR, )
-    async def admin(ctx: CommandContext):
+    @slash_command(name='admin', default_member_permissions=Permissions.ADMINISTRATOR)
+    async def admin(ctx: SlashContext):
         """ Configurate your server's translation settings """
-        guild: Guild = await ctx.get_guild()
+        guild: Guild = await client.fetch_guild(ctx.guild_id)
 
         def update_guild_data() -> dict:
             """ Returns updated guild data from the database """
@@ -279,21 +230,21 @@ def main():
                 cursor.execute(f"INSERT INTO channel (id) VALUES (?)", (selected_channel,))
                 return await update_channel_data()
 
-        def update_auto_delete_options(settings_data: dict) -> [SelectOption]:
+        def update_auto_delete_options(settings_data: dict) -> [StringSelectOption]:
             print(f'DEBUG: Updating auto delete options for data: {settings_data}')
             cd = settings_data['auto_delete_cd']
             options = [
-                SelectOption(label=label, value=seconds, description=f'Delete translation messages after {label}',
-                             emoji=Emoji(name='⌛'), default=True if cd == seconds else False)
+                StringSelectOption(label=label, value=seconds, description=f'Delete translation messages after {label}',
+                                   emoji=PartialEmoji(name='⌛'), default=True if cd == seconds else False)
                 for label, seconds in AUTO_DELETE_TIMERS
             ]
             options.insert(
-                0, SelectOption(label='Never delete', value=-1, description='Never delete translation messages',
-                                emoji=Emoji(name='⌛'), default=True if not cd else False)
+                0, StringSelectOption(label='Never delete', value="-1", description='Never delete translation messages',
+                                      emoji=PartialEmoji(name='⌛'), default=True if not cd else False)
             )
             return options
 
-        def update_auto_translation_options(settings_data: dict | None) -> [SelectOption]:
+        def update_auto_translation_options(settings_data: dict | None) -> [StringSelectOption]:
             if settings_data and settings_data['auto_translate']:
                 auto_translate_langs = settings_data['auto_translate']
             else:
@@ -302,15 +253,15 @@ def main():
             for code in AUTO_TRANSLATE_OPTIONS:
                 full_name = get_language_name(code, add_native=True)
                 options.append(
-                    SelectOption(label=full_name, value=code,
-                                 description=f'Automatically translate messages to {full_name}',
-                                 default=code in auto_translate_langs))
+                    StringSelectOption(label=full_name, value=code,
+                                       description=f'Automatically translate messages to {full_name}',
+                                       default=code in auto_translate_langs))
             return options
 
         guild_data = update_guild_data()
-        category_list = [channel for channel in await guild.get_all_channels()
+        category_list = [channel for channel in guild.channels
                          if channel.type == ChannelType.GUILD_CATEGORY]
-        text_channel_list = [channel for channel in await guild.get_all_channels()
+        text_channel_list = [channel for channel in guild.channels
                              if channel.type == ChannelType.GUILD_TEXT]
         text_channel_hash = {int(channel.id): channel for channel in text_channel_list}
 
@@ -318,7 +269,7 @@ def main():
         async def create_home_embed() -> (Embed, [ActionRow], [Component]):
             embed_dict = {
                 'title': f'`{guild.name}`',
-                'thumbnail': EmbedImageStruct(url=guild.icon_url),
+                'thumbnail': EmbedAttachment(url=guild.icon.url),
                 'description': 'This is the `Admin Panel`, use the buttons below to configure your server.',
                 'fields': [
                     EmbedField(name=f'Tokens',
@@ -334,20 +285,17 @@ def main():
             labels = ['server', 'categories', 'channels']
             settings_buttons = [
                 Button(style=ButtonStyle.SECONDARY, label=label.title(), custom_id=f'to_{label}_settings',
-                       emoji=Emoji(id='1075539703014633512')) for label in labels]
+                       emoji=PartialEmoji(id='1075539703014633512')) for label in labels]
 
             linked_channels_button = Button(style=ButtonStyle.SECONDARY, label='Linked Channels',
-                                            custom_id='to_links_settings', emoji=Emoji(id='1075539703014633512'))
+                                            custom_id='to_links_settings', emoji=PartialEmoji(id='1075539703014633512'))
 
             shop_button = Button(style=ButtonStyle.LINK, label='Buy Tokens', url='https://www.google.com/',
-                                 emoji=Emoji(id='1075540183941914788'))
+                                 emoji=PartialEmoji(id='1075540183941914788'))
             support_button = Button(style=ButtonStyle.SECONDARY,
-                                    label='Support', custom_id='support', emoji=Emoji(id='1075539728553750621'))
-            rows = [
-                ActionRow(components=[*settings_buttons, linked_channels_button]),
-                ActionRow(components=[shop_button, support_button])
-            ]
-            return embed, rows, [*settings_buttons, linked_channels_button, shop_button, support_button]
+                                    label='Support', custom_id='support', emoji=PartialEmoji(id='1075539728553750621'))
+            return (embed, spread_to_rows(*settings_buttons, linked_channels_button, shop_button, max_in_row=4),
+                    [*settings_buttons, linked_channels_button, shop_button, support_button])
 
         # endregion
         # region Server Settings
@@ -357,7 +305,7 @@ def main():
 
             embed_dict = {
                 'title': f'`{guild.name}` - Server Settings',
-                'thumbnail': EmbedImageStruct(url=guild.icon_url),
+                'thumbnail': EmbedAttachment(url=guild.icon.url),
                 'description': 'This is the `Server Settings` page, changes here affect the *whole* server. '
                                '\n\nSettings on this page:\n'
                                '`Auto Delete` Dropdown for translation message lifetime.\n'
@@ -371,16 +319,16 @@ def main():
             }
             embed = Embed(**embed_dict)
             print(F'AUTO DELETE OPTIONS: {auto_delete_options}')
-            auto_delete_select = SelectMenu(
-                custom_id='auto_delete_guild',
-                options=auto_delete_options
+            auto_delete_select = StringSelectMenu(
+                *auto_delete_options,
+                custom_id='auto_delete_guild'
             )
             back_button = Button(style=ButtonStyle.SECONDARY,
-                                 label='Back', custom_id='to_homepage', emoji=Emoji(id='1075538962787082250'))
+                                 label='Back', custom_id='to_homepage', emoji=PartialEmoji(id='1075538962787082250'))
             flag_button = Button(style=ButtonStyle.SUCCESS if flag_t else ButtonStyle.DANGER, label='Flag Translation',
-                                 custom_id='flag_toggle', emoji=Emoji(name='🇨🇦'))
+                                 custom_id='flag_toggle', emoji=PartialEmoji(name='🇨🇦'))
             cmd_button = Button(style=ButtonStyle.SUCCESS if cmd_t else ButtonStyle.DANGER, label='Command Translation',
-                                custom_id='command_toggle', emoji=Emoji(id='1075542290698866759'))
+                                custom_id='command_toggle', emoji=PartialEmoji(id='1075542290698866759'))
             rows = spread_to_rows(auto_delete_select, back_button, flag_button, cmd_button)
             return embed, rows, [auto_delete_select, back_button, flag_button, cmd_button]
 
@@ -398,16 +346,16 @@ def main():
             disable_reset_button, disable_edit_button = True, True
             if selected_category:
                 cursor.execute('SELECT * FROM category WHERE id = ?', (selected_category,))
-                selected_category_data = cursor.fetchone()
+                category_data = cursor.fetchone()
                 disable_edit_button = False
-                if selected_category_data:
-                    selected_category_data = dict(selected_category_data)
-                    auto_delete_string = get_auto_delete_timer_string(selected_category_data['auto_delete_cd'])
+                if category_data:
+                    category_data = dict(category_data)
+                    auto_delete_string = get_auto_delete_timer_string(int(category_data['auto_delete_cd']))
                     disable_reset_button = False
                 else:
                     auto_delete_string = get_auto_delete_timer_string(None)
 
-                langs_string = language_list_string(selected_category_data)
+                langs_string = language_list_string(category_data)
                 affected_string = channel_list_string(text_channel_list, selected_category)
 
                 embed_dict['fields'] = [
@@ -417,15 +365,14 @@ def main():
                 ]
             embed = Embed(**embed_dict)
             back_button = Button(style=ButtonStyle.SECONDARY,
-                                 label='Back', custom_id='to_homepage', emoji=Emoji(id='1075538962787082250'))
+                                 label='Back', custom_id='to_homepage', emoji=PartialEmoji(id='1075538962787082250'))
             edit_button = Button(style=ButtonStyle.PRIMARY, label='Edit', custom_id='edit_category_settings',
-                                 emoji=Emoji(name='✏️'), disabled=disable_edit_button)
+                                 emoji=PartialEmoji(name='✏️'), disabled=disable_edit_button)
             reset_button = Button(style=ButtonStyle.PRIMARY, label='Reset', custom_id='reset_category_settings',
-                                  emoji=Emoji(name='🔁'), disabled=disable_reset_button)
-            category_select = SelectMenu(
+                                  emoji=PartialEmoji(name='🔁'), disabled=disable_reset_button)
+            category_select = ChannelSelectMenu(
                 placeholder='Select a category...',
                 custom_id='category_select',
-                type=ComponentType.CHANNEL_SELECT,
                 channel_types=[ChannelType.GUILD_CATEGORY]
             )
             rows = spread_to_rows(category_select, back_button, edit_button, reset_button)
@@ -448,19 +395,20 @@ def main():
                 'footer': FOOTER
             }
             embed = Embed(**embed_dict)
-            auto_translate_select = SelectMenu(
+            auto_translate_select = StringSelectMenu(
+                *auto_translation_options,
                 placeholder='Select languages for auto translation...',
                 custom_id='auto_translate_category',
-                options=auto_translation_options,
                 min_values=0,
                 max_values=3
             )
-            auto_delete_select = SelectMenu(
+            auto_delete_select = StringSelectMenu(
+                *auto_delete_options,
                 custom_id='auto_delete_category',
-                options=auto_delete_options,
             )
             back_button = Button(style=ButtonStyle.SECONDARY,
-                                 label='Back', custom_id='to_category_settings', emoji=Emoji(id='1075538962787082250'))
+                                 label='Back', custom_id='to_category_settings',
+                                 emoji=PartialEmoji(id='1075538962787082250'))
             return (embed, spread_to_rows(auto_translate_select, auto_delete_select, back_button),
                     [auto_translate_select, auto_delete_select, back_button])
 
@@ -478,16 +426,16 @@ def main():
             disable_reset_button, disable_edit_button = True, True
             if selected_channel:
                 cursor.execute('SELECT * FROM channel WHERE id = ?', (selected_channel,))
-                selected_channel_data = cursor.fetchone()
+                channel_data = cursor.fetchone()
                 disable_edit_button = False
-                if selected_channel_data:
-                    selected_channel_data = dict(selected_channel_data)
-                    auto_delete_string = get_auto_delete_timer_string(selected_channel_data['auto_delete_cd'])
+                if channel_data:
+                    channel_data = dict(channel_data)
+                    auto_delete_string = get_auto_delete_timer_string(int(channel_data['auto_delete_cd']))
                     disable_reset_button = False
                 else:
                     auto_delete_string = get_auto_delete_timer_string(None)
 
-                langs_string = language_list_string(selected_channel_data)
+                langs_string = language_list_string(channel_data)
 
                 embed_dict['fields'] = [
                     EmbedField(name=f'Auto Translation', value=langs_string, inline=True),
@@ -495,15 +443,14 @@ def main():
                 ]
             embed = Embed(**embed_dict)
             back_button = Button(style=ButtonStyle.SECONDARY,
-                                 label='Back', custom_id='to_homepage', emoji=Emoji(id='1075538962787082250'))
+                                 label='Back', custom_id='to_homepage', emoji=PartialEmoji(id='1075538962787082250'))
             edit_button = Button(style=ButtonStyle.PRIMARY, label='Edit', custom_id='edit_channel_settings',
-                                 emoji=Emoji(name='✏️'), disabled=disable_edit_button)
+                                 emoji=PartialEmoji(name='✏️'), disabled=disable_edit_button)
             reset_button = Button(style=ButtonStyle.PRIMARY, label='Reset', custom_id='reset_channel_settings',
-                                  emoji=Emoji(name='🔁'), disabled=disable_reset_button)
-            channel_select = SelectMenu(
+                                  emoji=PartialEmoji(name='🔁'), disabled=disable_reset_button)
+            channel_select = ChannelSelectMenu(
                 placeholder='Select a channel...',
                 custom_id='channel_select',
-                type=ComponentType.CHANNEL_SELECT,
                 channel_types=[ChannelType.GUILD_TEXT]
             )
             rows = spread_to_rows(channel_select, back_button, edit_button, reset_button)
@@ -525,19 +472,20 @@ def main():
                 'footer': FOOTER
             }
             embed = Embed(**embed_dict)
-            auto_translate_select = SelectMenu(
+            auto_translate_select = StringSelectMenu(
+                *auto_translation_options,
                 placeholder='Select languages for auto translation...',
                 custom_id='auto_translate_channel',
-                options=auto_translation_options,
                 min_values=0,
                 max_values=3
             )
-            auto_delete_select = SelectMenu(
+            auto_delete_select = StringSelectMenu(
+                *auto_delete_options,
                 custom_id='auto_delete_channel',
-                options=auto_delete_options,
             )
             back_button = Button(style=ButtonStyle.SECONDARY,
-                                 label='Back', custom_id='to_channel_settings', emoji=Emoji(id='1075538962787082250'))
+                                 label='Back', custom_id='to_channel_settings',
+                                 emoji=PartialEmoji(id='1075538962787082250'))
             return (embed, spread_to_rows(auto_translate_select, auto_delete_select, back_button),
                     [auto_translate_select, auto_delete_select, back_button])
 
@@ -553,10 +501,9 @@ def main():
 
             embed = Embed(**embed_dict)
 
-            channel_select_links = SelectMenu(
+            channel_select_links = ChannelSelectMenu(
                 placeholder='Select a channel...',
                 custom_id='links_channel_select',
-                type=ComponentType.CHANNEL_SELECT,
                 channel_types=[ChannelType.GUILD_TEXT]
             )
             link_select = None
@@ -570,20 +517,20 @@ def main():
                     description = ', '.join([get_language_name(lang)
                                              for lang in link["languages"]])
                     link_options.append(
-                        SelectOption(label=label, value=i, description=description, default=False))
+                        StringSelectOption(label=label, value=i, description=description, default=False))
 
                 if link_options:
-                    link_select = SelectMenu(
+                    link_select = StringSelectMenu(
+                        *link_options,
                         placeholder='Select a link configuration...',
                         custom_id='links_link_select',
-                        options=link_options
                     )
             back_button = Button(style=ButtonStyle.SECONDARY, label='Back', custom_id='to_homepage',
-                                 emoji=Emoji(id='1075538962787082250'))
+                                 emoji=PartialEmoji(id='1075538962787082250'))
             create_link_button = Button(style=ButtonStyle.SUCCESS, label='New Link', custom_id='to_new_link',
-                                        emoji=Emoji(name='➕'), disabled=not links_selected_channel)
+                                        emoji=PartialEmoji(name='➕'), disabled=not links_selected_channel)
             delete_link_button = Button(style=ButtonStyle.DANGER, label='Delete Link', custom_id='delete_link',
-                                        emoji=Emoji(name='✖️'), disabled=not selected_link)
+                                        emoji=PartialEmoji(name='✖️'), disabled=not selected_link)
 
             return (
                 embed,
@@ -602,27 +549,26 @@ def main():
 
             embed = Embed(**embed_dict)
 
-            new_link_channel_select = SelectMenu(
+            new_link_channel_select = ChannelSelectMenu(
                 placeholder='Link channel to...',
                 custom_id='new_link_channel_select',
-                type=ComponentType.CHANNEL_SELECT,
                 channel_types=[ChannelType.GUILD_TEXT],
                 max_values=5  # todo limit to max 5 links
             )
 
-            new_link_languages_select = SelectMenu(
+            new_link_languages_select = StringSelectMenu(
+                *auto_translation_options,
                 placeholder='Select languages for auto translation...',
                 custom_id='new_link_languages_select',
-                options=auto_translation_options,
                 max_values=3
             )
 
             save_disabled = not (new_link_selected_languages and new_link_selected_channels)
 
             back_button = Button(style=ButtonStyle.SECONDARY, label='Back', custom_id='to_links_settings',
-                                 emoji=Emoji(id='1075538962787082250'))
+                                 emoji=PartialEmoji(id='1075538962787082250'))
             save_button = Button(style=ButtonStyle.SUCCESS, label='Save', custom_id='new_link_save',
-                                 emoji=Emoji(name='✅'), disabled=save_disabled)
+                                 emoji=PartialEmoji(name='✅'), disabled=save_disabled)
 
             return (embed, spread_to_rows(new_link_channel_select, new_link_languages_select, back_button, save_button),
                     [new_link_channel_select, new_link_languages_select, back_button, save_button])
@@ -638,9 +584,10 @@ def main():
 
         while True:
             try:
-                button_ctx: ComponentContext = await client.wait_for_component(
+                component: Component = await client.wait_for_component(
                     all_components, message, check=component_check, timeout=120)
-                custom_id = button_ctx.custom_id
+                custom_id = component.ctx.custom_id
+                await component.ctx.defer(edit_origin=True)
                 print(f'Button pressed: {custom_id}')
                 match custom_id:
                     # region Homepage
@@ -671,7 +618,7 @@ def main():
                         guild_data = update_guild_data()
                         next_embed_function = create_server_settings_embed
                     case 'auto_delete_guild':
-                        new_cooldown = int(button_ctx.data.values[0])
+                        new_cooldown = int(component.ctx.values[0])
                         if new_cooldown == -1:
                             new_cooldown = None
                             print(new_cooldown)
@@ -684,7 +631,7 @@ def main():
                     # endregion
                     # region Category Settings
                     case 'category_select':
-                        selected_category = button_ctx.data.values[0]
+                        selected_category = component.ctx.values[0]
                         next_embed_function = create_category_settings_embed
                     case 'reset_category_settings':
                         if selected_category:
@@ -700,7 +647,7 @@ def main():
                         auto_translation_options = update_auto_translation_options(category_data)
                         next_embed_function = create_category_edit_embed
                     case 'auto_delete_category':
-                        new_cooldown = int(button_ctx.data.values[0])
+                        new_cooldown = int(component.ctx.values[0])
                         if new_cooldown == -1:
                             new_cooldown = None
 
@@ -711,7 +658,7 @@ def main():
                         auto_delete_options = update_auto_delete_options(category_data)
                         next_embed_function = create_category_edit_embed
                     case 'auto_translate_category':
-                        values = button_ctx.data.values
+                        values = component.ctx.values
                         values = None if not values else json.dumps(values)
                         print(f'DEBUG: updating category {selected_category} auto-translate with {values}')
                         cursor.execute(f"UPDATE category SET auto_translate=? WHERE id=?;",
@@ -723,7 +670,7 @@ def main():
                     # endregion
                     # region Channel Settings
                     case 'channel_select':
-                        selected_channel = button_ctx.data.values[0]
+                        selected_channel = component.ctx.values[0]
                         next_embed_function = create_channel_settings_embed
                     case 'reset_channel_settings':
                         if selected_channel:
@@ -739,7 +686,7 @@ def main():
                         auto_translation_options = update_auto_translation_options(category_data)
                         next_embed_function = create_channel_edit_embed
                     case 'auto_delete_channel':
-                        new_cooldown = int(button_ctx.data.values[0])
+                        new_cooldown = int(component.ctx.values[0])
                         if new_cooldown == -1:
                             new_cooldown = None
 
@@ -750,7 +697,7 @@ def main():
                         auto_delete_options = update_auto_delete_options(channel_data)
                         next_embed_function = create_channel_edit_embed
                     case 'auto_translate_channel':
-                        values = button_ctx.data.values
+                        values = component.ctx.values
                         values = None if not values else json.dumps(values)
                         print(f'DEBUG: updating channel {selected_channel} auto-translate with {values}')
                         cursor.execute(f"UPDATE channel SET auto_translate=? WHERE id=?;",
@@ -768,10 +715,10 @@ def main():
                         new_link_selected_languages, new_link_selected_channels = None, None
                         next_embed_function = create_links_settings_embed
                     case 'links_channel_select':
-                        links_selected_channel = button_ctx.data.values[0]
+                        links_selected_channel = component.ctx.values[0]
                         next_embed_function = create_links_settings_embed
                     case 'links_link_select':
-                        selected_link = button_ctx.data.values[0]
+                        selected_link = component.ctx.values[0]
                         next_embed_function = create_links_settings_embed
                     case 'link_delete':
                         next_embed_function = create_links_settings_embed
@@ -780,10 +727,10 @@ def main():
                         auto_translation_options = update_auto_translation_options(None)
                         next_embed_function = create_new_link_embed
                     case 'new_link_channel_select':
-                        new_link_selected_channels = button_ctx.data.values
+                        new_link_selected_channels = component.ctx.values
                         next_embed_function = create_new_link_embed
                     case 'new_link_languages_select':
-                        new_link_selected_languages = button_ctx.data.values
+                        new_link_selected_languages = component.ctx.values
                         auto_translation_options = update_auto_translation_options(
                             {'auto_translate': new_link_selected_languages})
                         next_embed_function = create_new_link_embed
@@ -807,37 +754,38 @@ def main():
 
                     # region Fallback
                     case _:
-                        await message.edit(embeds=Embed(
-                            description=f'**Uh oh! Something went wrong. '
-                                        f'Please try using </{ctx.data.name}:{ctx.data.id}> again.**\n\n'
-                                        f'*If issues persist, contact* <@275018879779078155>', footer=FOOTER))
+                        await ctx.edit(message, embeds=Embed(
+                            description=f'**Uh oh! Something went wrong.'
+                                        f'Please try using `/{ctx.command.name}` again.**\n\n'
+                                        f'*If issues persist, contact an admin*', footer=FOOTER))
                         break
                     # endregion
                 next_embed, action_rows, all_components = await next_embed_function()
-                message = await button_ctx.edit(embeds=next_embed, components=action_rows)
+                message = await ctx.edit(message, embeds=next_embed, components=action_rows)
 
             except asyncio.TimeoutError:
                 await message.edit(embeds=Embed(
-                    description=f'**Your session has expired, please use </{ctx.data.name}:{ctx.data.id}> '
-                                f'again if you would like to continue.**'))
+                    description=f'**Your session has expired, please use `/{ctx.command.name}` again if you would '
+                                f'like to continue.**'))
                 break
 
-    @client.command(
+    @slash_command(
         name='ban',
         default_member_permissions=Permissions.ADMINISTRATOR,
     )
-    @interactions.option(
-        type=OptionType.USER,
+    @slash_option(
+        name="member",
         description='User to ban from using translate features',
-        required=True
+        required=True,
+        opt_type=OptionType.USER
     )
-    async def ban_command(ctx: CommandContext, member: Member):
+    async def ban_command(ctx: SlashContext, member: Member):
         """ Ban a user from using the bot """
 
         #  https://interactionspy.readthedocs.io/en/latest/api.models.guild.html#interactions.api.models.guild.Guild.create_role
         ban_role_name = 'no-translate'
-        guild: Guild = await ctx.get_guild()
-        roles: [Role] = await guild.get_all_roles()
+        guild = await client.fetch_guild(ctx.guild.id)
+        roles = guild.roles
         print(pformat(roles))
         embed_dict: dict = {
             "color": EMBED_COLOUR,
@@ -849,7 +797,7 @@ def main():
         if ban_role_name not in role_names:
             await guild.create_role(
                 ban_role_name,
-                0,
+                None,
                 reason=f'The {ban_role_name} was created to assign to users that are banned from using '
                        f'translation features.'
             )
@@ -884,19 +832,21 @@ def main():
             await message.disable_all_components()
             return
         try:
-            button_ctx: ComponentContext = await client.wait_for_component(button, message, timeout=30)
-            if button_ctx.custom_id == 'reset_perms_ban':
+            component: Component = await client.wait_for_component(message, button, timeout=30)
+            await component.ctx.defer(edit_origin=True)
+            custom_id = component.ctx.custom_id
+            if custom_id == 'reset_perms_ban':
                 reason = f'Removed potentially unsafe permissions attached to the `{ban_role_name}` role.'
                 await guild.modify_role(ban_role.id, permissions=0, reason=reason)
-                success_button = Button(style=ButtonStyle.SUCCESS, emoji=Emoji(name='✅'),
+                success_button = Button(style=ButtonStyle.SUCCESS, emoji=PartialEmoji(name='✅'),
                                         label='Success', custom_id='success', disabled=True)
-                await button_ctx.edit(components=success_button)  # reply with success
+                await component.ctx.edit(components=success_button)
         except asyncio.exceptions.TimeoutError:
             pass
 
     # endregion
 
-    client.start()  # start discord client
+    client.start(os.getenv('DISCORD_TOKEN'))  # start discord client
 
     # close cursor and database connection
     cursor.close()

@@ -4,11 +4,11 @@ from datetime import datetime, timedelta
 from sqlite3 import Cursor
 from typing import Any
 
-from interactions import Channel, EmbedFooter
+from interactions import GuildText, EmbedFooter, MaterialColours
 
 from const import LANGUAGES
 
-EMBED_COLOUR = 0x56b0fd
+EMBED_COLOUR = MaterialColours.DEEP_PURPLE
 FOOTER = EmbedFooter(text='disclate ・ v1.0')
 
 AUTO_DELETE_TIMERS = [
@@ -79,7 +79,7 @@ def language_list_string(data: dict) -> str:
     return string
 
 
-def channel_list_string(text_channel_list: [Channel], selected_category: int | str, max_length: int = 5) -> str:
+def channel_list_string(text_channel_list: [GuildText], selected_category: int | str, max_length: int = 5) -> str:
     """ Returns a string of all languages in a list """
     affected_channels = [
         f'{channel.mention}' for channel in text_channel_list
