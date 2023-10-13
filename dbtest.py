@@ -64,7 +64,7 @@ cursor.execute('''
     CREATE TABLE thread (
         thread_id INTEGER PRIMARY KEY,
         languages TEXT NOT NULL,
-        last_used TEXT NOT NULL
+        last_used TEXT DEFAULT CURRENT_TIMESTAMP
     )
 ''')
 # endregion
@@ -73,21 +73,21 @@ server_data = [(871132162261397534,), (2,), (3,)]
 cursor.executemany("INSERT INTO guild (id) VALUES (?)", server_data)
 
 lang_str = json.dumps(["en", "fr"])
-lang_str2 = json.dumps(["af", "jv"])
+lang_str2 = json.dumps(["af"])
 category_data = [(871132162261397535, lang_str), (2, lang_str), (3, lang_str)]
 cursor.executemany("INSERT INTO category (id, auto_translate) VALUES (?, ?)", category_data)
 
 channel_data = [(1025240272197656598, lang_str), (1030694981624672336, lang_str), (4, lang_str)]
 cursor.executemany("INSERT INTO channel (id, auto_translate) VALUES (?, ?)", channel_data)
 channel_link_data = [(1025240272197656598, 1030694981624672336, lang_str),
-                     (1025240272197656598, 1080961573759242310, lang_str2),
-                     (1025240272197656598, 1030695005729333258, lang_str2),
+                     (1080961562212315156, 1080961573759242310, lang_str2),
+                     (1080961562212315156, 1080961582315606097, lang_str2),
                      (0, 1071191584953086052, lang_str)]
 cursor.executemany("INSERT INTO channel_link (channel_from_id, channel_to_id, languages) "
                    "VALUES (?, ?, ?)", channel_link_data)
 
-thread_data = [(1091048432036216884, lang_str, datetime.now().strftime('%Y-%m-%d'))]
-cursor.executemany("INSERT INTO thread (thread_id, languages, last_used) VALUES (?, ?, ?)", thread_data)
+thread_data = [(1091048432036216884, lang_str)]
+cursor.executemany("INSERT INTO thread (thread_id, languages) VALUES (?, ?)", thread_data)
 # Commit the changes to the database
 conn.commit()
 

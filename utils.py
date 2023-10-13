@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlite3 import Cursor
 from typing import Any
 
-from interactions import GuildText, EmbedFooter, MaterialColours
+from interactions import GuildText, EmbedFooter, MaterialColours, Snowflake, GuildCategory
 
 from const import LANGUAGES
 
@@ -37,9 +37,10 @@ def gen_countdown(offset: int) -> str:
     return f'<t:{round(time.time() + offset)}:R>'
 
 
-def get_auto_delete_timer_string(cooldown: int | None, can_inherit: bool = True) -> str:
+def get_auto_delete_timer_string(cooldown: int | str | None, can_inherit: bool = True) -> str:
     """ Returns the label for the auto delete timer """
     if cooldown:
+        cooldown = int(cooldown)
         for label, seconds in AUTO_DELETE_TIMERS:
             if cooldown == seconds:
                 return label
@@ -79,11 +80,11 @@ def language_list_string(data: dict) -> str:
     return string
 
 
-def channel_list_string(text_channel_list: [GuildText], selected_category: int | str, max_length: int = 5) -> str:
+def channel_list_string(text_channel_list: [GuildText], selected_category: GuildCategory, max_length: int = 5) -> str:
     """ Returns a string of all languages in a list """
     affected_channels = [
         f'{channel.mention}' for channel in text_channel_list
-        if channel.parent_id == selected_category]
+        if channel.parent_id == selected_category.id]
     if not affected_channels:
         return '*No text channels associated with this category.*'
     elif len(affected_channels) > max_length:
@@ -94,9 +95,9 @@ def channel_list_string(text_channel_list: [GuildText], selected_category: int |
     return string
 
 
-def group_channel_links(selected_channel, cursor: Cursor) -> list:
+def group_channel_links(selected_channel: GuildText, cursor: Cursor) -> list:
     """ Returns a list of lists of channel links, joined on their auto_translate languages"""
-    cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (selected_channel,))
+    cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (selected_channel.id,))
     links = cursor.fetchall()
     if not links:
         return []
@@ -106,7 +107,6 @@ def group_channel_links(selected_channel, cursor: Cursor) -> list:
         link = dict(link)
         link['languages'] = json.loads(link['languages'])
         link['languages'].sort()
-        print(link)
         found_group = False
         for group in channel_groups:
             if link['languages'] == group['languages']:
