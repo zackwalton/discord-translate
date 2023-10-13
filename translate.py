@@ -43,8 +43,7 @@ async def translate_text(targets: [str], text: str) -> [dict]:
         try:
             start_time = time.time()
             if target in GPT_LANGUAGES:
-                response = (await gpt_translate(text, target))['choices'][0]['message']['content'].strip('"')
-                # response = response.replace('\n', '')
+                response = (await gpt_translate(text, target))['choices'][0]['message']['content']
                 result = {'translatedText': response}
             else:
                 result = TRANSLATION_CLIENT.translate(text, target_language=target, format_='text')
@@ -63,7 +62,7 @@ async def translate_text(targets: [str], text: str) -> [dict]:
 
 async def gpt_translate(text: str, target: str) -> dict:
     prompt = f'Translate the following text to {get_language_name(target)}, ' \
-             f'do not include any other text but the translation: \n\n"""{text}"""'
+             f'do not include any other text but the translation: \n\n{text}'
     print(prompt)
     response = openai.ChatCompletion.create(
         model='gpt-3.5-turbo',
