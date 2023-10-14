@@ -1,14 +1,16 @@
 import os
 import time
+from pprint import pprint
 
 import openai
 import six
 from dotenv import load_dotenv
 from google.api_core.exceptions import BadRequest
 from google.cloud import translate_v2 as translate
+from interactions import Embed, Member, User, EmbedAuthor, EmbedFooter
 
 from const import GPT_LANGUAGES
-from utils import get_language_name
+from utils import get_language_name, EMBED_PRIMARY
 
 load_dotenv()
 GOOGLE_APPLICATION_CREDENTIALS = os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "service_account.json"
@@ -22,7 +24,7 @@ class FailedTranslation(BaseException):
 TRANSLATION_CLIENT = translate.Client()
 
 
-async def translate_text(targets: [str], text: str) -> [dict]:
+async def translate_text(targets: str | list[str], text: str) -> [dict]:
     """ Translates text into all target languages using the Google Cloud Translation API or GPT 3.5 Turbo
     Args:
         targets: List of all target translation languages e.g. ['en', 'fr']
@@ -57,6 +59,7 @@ async def translate_text(targets: [str], text: str) -> [dict]:
         except BadRequest:
             translation_data.append(FailedTranslation(f'`{target}`'))
     print('\n')
+    pprint(translation_data)
     return translation_data
 
 
@@ -74,6 +77,33 @@ async def gpt_translate(text: str, target: str) -> dict:
     return response
 
 
+async def create_trans_embed(translation_data: [dict], author: Member | User, target_langs: [str]) -> Embed:
+    """ Create embed for language translation functionality"""
+    source_lang = None
+    if 'detectedSourceLanguage' in translation_data[0]:
+        source_lang = translation_data[0]['detectedSourceLanguage']
+        from_lang = f'{get_language_name(translation_data[0]["detectedSourceLanguage"], native_only=True)} → '
+    else:
+        from_lang = ''
+    to_lang = f'{", ".join([get_language_name(e, native_only=True) for e in target_langs if e != source_lang])}'
+    embed = Embed(
+        author=EmbedAuthor(name=f'{author.nickname} ({author.global_name})'),
+        description=(await translation_tostring(translation_data)),
+        footer=EmbedFooter(text=f'{from_lang}{to_lang} ・ for {author.global_name}'),
+        color=EMBED_PRIMARY
+    )
+    return embed
+
+
+async def create_thread_trans_embed(translation_data: [dict], author: Member | User) -> Embed:
+    """ Create embed for language translation functionality"""
+    return Embed(
+        author=EmbedAuthor(name=author.global_name, icon_url=author.avatar_url),
+        description=(await translation_tostring(translation_data)),
+        color=EMBED_PRIMARY,
+    )
+
+
 async def detect_text_language(text: str) -> dict:
     """ Detect the language of any text, with confidence rating"""
     result = TRANSLATION_CLIENT.detect_language(text)
@@ -87,7 +117,9 @@ async def detect_text_language(text: str) -> dict:
 
 async def create_detection_embed(detection_data: dict):
     """ Create embed for language detection functionality"""
-    pass
+    embed = Embed(
+
+    )
 
 
 async def translation_tostring(translation_data: [dict]) -> str:
@@ -105,11 +137,6 @@ async def translation_tostring(translation_data: [dict]) -> str:
             text += f'`{t["targetLanguage"].upper()}:` '
         text += t["translatedText"]
     return text
-
-
-async def create_translation_embed(translation_data):
-    """ Create embed for language translation functionality"""
-    
 
 # Text can also be a sequence of strings, in which case this method
 # will return a sequence of results for each text.

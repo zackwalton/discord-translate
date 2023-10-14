@@ -7,17 +7,18 @@ from pprint import pformat
 
 from dotenv import load_dotenv
 from interactions import (
-    Client, Intents, Message, Embed, EmbedFooter, EmbedAuthor, OptionType, Permissions, Member, ChannelSelectMenu,
+    Client, Intents, Message, Embed, EmbedFooter, OptionType, Permissions, Member, ChannelSelectMenu,
     Guild, Button, ButtonStyle, ComponentContext, EmbedField, ActionRow, spread_to_rows, ChannelType, Activity,
     ActivityType, GuildText, StringSelectMenu, StringSelectOption, PartialEmoji,
     SlashContext, slash_command, component_callback, listen, slash_option, EmbedAttachment,
     GuildCategory)
-from interactions.api.events import MessageReactionAdd, Component, Startup, NewThreadCreate
+from interactions.api.events import MessageReactionAdd, Component, Startup, NewThreadCreate, ThreadDelete, MessageCreate
 
 from const import FLAG_DATA_REGIONAL
-from translate import translate_text, translation_tostring, detect_text_language
+from translate import translate_text, detect_text_language, create_thread_trans_embed, \
+    create_trans_embed
 from utils import (
-    EMBED_COLOUR, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name,
+    EMBED_PRIMARY, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name,
     AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links)
 
 # region Start Bot
@@ -51,7 +52,7 @@ async def should_process(message: Message, reaction: MessageReactionAdd = None):
         if emoji not in FLAG_DATA_REGIONAL or emoji == '🌐':
             return False
     else:  # no reaction on message
-        if message.author.id == client.me.id:  # message was sent by the bot
+        if message.author.id == client.user.id:  # message was sent by the bot
             return False
 
     return True
@@ -74,7 +75,7 @@ async def on_message_reaction_add(reaction: MessageReactionAdd):
         if referenced_message and client.user.id == message.author.id:
             message = referenced_message
     embed_dict: dict = {
-        "color": EMBED_COLOUR
+        "color": EMBED_PRIMARY
     }
     if emoji == '🌐':  # language detection
         result = await detect_text_language(message.content)
@@ -91,6 +92,7 @@ async def on_message_reaction_add(reaction: MessageReactionAdd):
         embed_dict['description'] = detection_text
         embed_dict['footer'] = EmbedFooter(
             text=f'{reaction.author.global_name}・ {confidence_percent} Confident')
+        embed = Embed(**embed_dict)
 
     else:  # text translation
         translation_data = await translate_text(
@@ -99,30 +101,27 @@ async def on_message_reaction_add(reaction: MessageReactionAdd):
         )
         if not translation_data:
             return
-        translated_text = await translation_tostring(translation_data)
-
-        embed_dict['author'] = EmbedAuthor(name=reaction.author.global_name)
-        embed_dict['description'] = translated_text
-        if 'detectedSourceLanguage' in translation_data[0]:
-            from_lang = f'{get_language_name(translation_data[0]["detectedSourceLanguage"], native_only=True)} → '
-        else:
-            from_lang = ''
-        to_lang = f'{", ".join([get_language_name(e, native_only=True) for e in FLAG_DATA_REGIONAL[emoji]])}'
-        embed_dict['footer'] = EmbedFooter(
-            text=f'{from_lang}{to_lang} ・ for {reaction.author.global_name}'
-        )
-
-    embed = Embed(**embed_dict)
-    await message.reply(embeds=[embed])
+        target_langs = FLAG_DATA_REGIONAL[emoji]
+        embed = await create_trans_embed(translation_data, reaction.author, target_langs)
+    await message.reply(embed=embed)
 
 
 # endregion
 
 # region Message Event Handler
-@client.event()
-async def on_message_create2(message: Message):
+@listen(MessageCreate)
+async def on_message_create(e: MessageCreate):
+    message = e.message
     if not await should_process(message):
         return
+
+    # thread message
+    if message.channel.type in (ChannelType.GUILD_PRIVATE_THREAD, ChannelType.GUILD_PUBLIC_THREAD):
+        await handle_thread_translation(message)
+        return
+
+    # handle category, thread, and server auto translation languages
+
     channel_id = message.channel.id
     links = [dict(link) for link in
              cursor.execute(
@@ -135,6 +134,22 @@ async def on_message_create2(message: Message):
         if channel_to.type == ChannelType.GUILD_TEXT:
             await channel_to.send(message.content)
     await message.reply('test')
+
+
+async def handle_thread_translation(message: Message):
+    cursor.execute('SELECT * FROM thread WHERE thread_id = ?', (message.channel.id,))
+    thread_data = cursor.fetchone()
+    if thread_data:
+        thread_data = dict(thread_data)
+        languages = thread_data['languages']
+        if languages:
+            languages = json.loads(languages)
+            translation_data = await translate_text(languages, message.content)
+            if not translation_data:
+                return
+            embed = await create_thread_trans_embed(translation_data, message.author)
+            await message.reply(embed=embed, silent=True)  # noqa
+    return
 
 
 # endregion
@@ -162,18 +177,34 @@ async def create_thread_select_menu(selected: [] = None):
 thread_translation_message = 'Choose auto-translation languages for messages in this thread!'
 
 
-@listen()
-async def on_thread_create(thread: ThreadChannel):
+@listen(NewThreadCreate)
+async def on_new_thread_create(e: NewThreadCreate):
+    thread = e.thread
     print('DEBUG: Thread created!')
     select_menu = await create_thread_select_menu()
-    await thread.send(thread_translation_message, components=spread_to_rows(select_menu))
+    await asyncio.sleep(0.1)
+    await thread.send(thread_translation_message, components=spread_to_rows(select_menu), silent=True)
+
+
+@listen(ThreadDelete)
+async def on_thread_delete(e: ThreadDelete):
+    cursor.execute('DELETE FROM thread WHERE thread_id = ?', (e.thread.id,))
+    conn.commit()
 
 
 @component_callback('thread_auto_translation')
-async def thread_auto_translation(ctx: ComponentContext, values: [] = None):
-    print('DEBUG: Thread auto translation languages: ', values)
-    select_menu = await create_thread_select_menu(values)
-    await ctx.edit(thread_translation_message, components=select_menu)
+async def thread_auto_translation(ctx: ComponentContext):
+    select_menu = await create_thread_select_menu(ctx.values)
+    await ctx.edit_origin(content=thread_translation_message, components=select_menu)
+
+    # delete or update thread data in database
+    if ctx.values:
+        cursor.execute(
+            'REPLACE INTO thread (thread_id, languages) VALUES (?, ?)',
+            (ctx.channel_id, json.dumps(ctx.values)))
+    else:
+        cursor.execute('DELETE FROM thread WHERE thread_id = ?', (ctx.channel_id,))
+    conn.commit()
 
 
 # endregion
@@ -281,7 +312,7 @@ async def admin(ctx: SlashContext):
                 EmbedField(name='Characters Translated', value=str(guild_data['characters_translated']),
                            inline=True)
             ],
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
         embed = Embed(**embed_dict)
@@ -318,7 +349,7 @@ async def admin(ctx: SlashContext):
                 EmbedField(name=f'Flag Translation', value='Active' if flag_t else 'Not active', inline=True),
                 EmbedField(name='Command Translation', value='Active' if cmd_t else 'Not active', inline=True)
             ],
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
         embed = Embed(**embed_dict)
@@ -344,7 +375,7 @@ async def admin(ctx: SlashContext):
             'description': f'This is the `Category Settings` page, you can make changes here that '
                            f'affect a categories and all the channels under it. '
                            f'\n\nChoose a category from the dropdown to view its configuration.',
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
         disable_reset_button, disable_edit_button = True, True
@@ -395,7 +426,7 @@ async def admin(ctx: SlashContext):
                            '\n\nSettings on this page:\n'
                            '`Auto Translation` Dropdown for automatic translation languages.\n'
                            '`Auto Delete` Dropdown for translation message lifetime.',
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
         embed = Embed(**embed_dict)
@@ -424,7 +455,7 @@ async def admin(ctx: SlashContext):
             'description': f'This is the `Channel Settings` page, you can make changes here that '
                            f'affect a single channel.'
                            f'\n\nChoose a channel from the dropdown to view its configuration.',
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
         disable_reset_button, disable_edit_button = True, True
@@ -472,7 +503,7 @@ async def admin(ctx: SlashContext):
                            '\n\nSettings on this page:\n'
                            '`Auto Translation` Dropdown for automatic translation languages.\n'
                            '`Auto Delete` Dropdown for translation message lifetime.',
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
         embed = Embed(**embed_dict)
@@ -499,7 +530,7 @@ async def admin(ctx: SlashContext):
             'title': f'`{guild.name}` - Linked Channel Settings',
             'description': f'You are viewing your server\'s linked channels, select a channel below and then use '
                            f'the second dropdown to select a link from that channel to others.',
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
 
@@ -554,7 +585,7 @@ async def admin(ctx: SlashContext):
             'title': f'`#{from_channel.name}` - New Link',
             'description': f'You are creating a link from {from_channel.mention}, select target channels and '
                            f'languages using the dropdowns below.',
-            'color': EMBED_COLOUR,
+            'color': EMBED_PRIMARY,
             'footer': FOOTER
         }
 
@@ -811,7 +842,7 @@ async def ban_command(ctx: SlashContext, member: Member):
     roles = guild.roles
     print(pformat(roles))
     embed_dict: dict = {
-        "color": EMBED_COLOUR,
+        "color": EMBED_PRIMARY,
         "description": ""
     }
 

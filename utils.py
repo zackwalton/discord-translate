@@ -8,7 +8,9 @@ from interactions import GuildText, EmbedFooter, MaterialColours, Snowflake, Gui
 
 from const import LANGUAGES
 
-EMBED_COLOUR = MaterialColours.DEEP_PURPLE
+EMBED_PRIMARY = MaterialColours.DEEP_PURPLE
+EMBED_SECONDARY = MaterialColours.PURPLE
+
 FOOTER = EmbedFooter(text='disclate ・ v1.0')
 
 AUTO_DELETE_TIMERS = [
