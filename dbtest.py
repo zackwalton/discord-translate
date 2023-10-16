@@ -1,6 +1,5 @@
 import json
 import sqlite3
-from datetime import datetime
 
 
 def print_table_data(name: str):
@@ -20,6 +19,7 @@ cursor = conn.cursor()
 # delete tables
 cursor.execute('PRAGMA foreign_keys = ON;')
 cursor.execute('DROP TABLE IF EXISTS guild')
+cursor.execute('DROP TABLE IF EXISTS subscription_tier')
 cursor.execute('DROP TABLE IF EXISTS category')
 cursor.execute('DROP TABLE IF EXISTS channel')
 cursor.execute('DROP TABLE IF EXISTS channel_link')
@@ -29,12 +29,22 @@ cursor.execute('DROP TABLE IF EXISTS thread')
 cursor.execute('''
     CREATE TABLE guild (
         id INTEGER PRIMARY KEY,
-        tokens INTEGER NOT NULL DEFAULT 10000,
-        premium BOOL NOT NULL DEFAULT 0,
+        tokens_remaining INTEGER NOT NULL DEFAULT 10000,
+        subscription_id INTEGER NOT NULL DEFAULT 1,
         flag_translation BOOL NOT NULL DEFAULT 1,
         command_translation BOOL NOT NULL DEFAULT 1,
         characters_translated INTEGER NOT NULL DEFAULT 0,
-        auto_delete_cd INTEGER
+        auto_delete_cd INTEGER,
+        FOREIGN KEY (subscription_id) REFERENCES subscription_tier(id)
+    )
+''')
+
+cursor.execute('''
+    CREATE TABLE subscription_tier (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        price DOUBLE NOT NULL,
+        tokens INTEGER NOT NULL
     )
 ''')
 
@@ -69,6 +79,16 @@ cursor.execute('''
 ''')
 # endregion
 
+tier_data = [
+    (1, 'Free Tier', 0, 10000),
+    (2, 'Tier 1', 2.99, 100000),
+    (3, 'Tier 2', 2.99, 200000),
+    (4, 'Tier 3', 6.99, 400000),
+    (5, 'Tier 4', 15.99, 600000),
+    (6, 'Tier 5', 21.99, 800000)
+]
+cursor.executemany("INSERT INTO subscription_tier (id, name, price, tokens) VALUES (?, ?, ?, ?)", tier_data)
+
 server_data = [(871132162261397534,), (2,), (3,)]
 cursor.executemany("INSERT INTO guild (id) VALUES (?)", server_data)
 
@@ -92,18 +112,11 @@ cursor.executemany("INSERT INTO thread (thread_id, languages) VALUES (?, ?)", th
 conn.commit()
 
 print_table_data("guild")
+print_table_data("subscription_tier")
 print_table_data("category")
 print_table_data("channel")
 print_table_data("channel_link")
 print_table_data("thread")
-
-print('\n\n')
-categories = (871132162261397535, 871132162261397536, 1071191623196737647)
-query = f"SELECT * FROM category WHERE id IN ({('?,'*(len(categories)-1))}?)"
-print(query)
-cursor.execute(query, categories)
-for row in cursor.fetchall():
-    print(dict(row))
 
 # Close the cursor and the connection
 cursor.close()
@@ -115,3 +128,9 @@ conn.close()
 # cursor.execute(f"SELECT * FROM channel_links")
 # for row in cursor.fetchall():
 #     print(json.loads(row[2]))
+
+
+# USING 'IN' INSIDE A QUERY
+# categories = (871132162261397535, 871132162261397536, 1071191623196737647)
+# query = f"SELECT * FROM category WHERE id IN ({('?,'*(len(categories)-1))}?)"
+# cursor.execute(query, categories)
