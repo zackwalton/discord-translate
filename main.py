@@ -19,7 +19,7 @@ from translate import translate_text, detect_text_language, create_thread_trans_
     create_trans_embed
 from utils import (
     EMBED_PRIMARY, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name,
-    AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links)
+    AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links, get_total_links)
 
 # region Start Bot
 load_dotenv('.env')
@@ -231,6 +231,9 @@ async def text_command(ctx: SlashContext, text: str = None, languages: str = Non
                    f"{re.findall('[a-z]{2}', languages)}")
 
 
+MAX_LINKS = 8
+
+
 @slash_command(name='admin', default_member_permissions=Permissions.ADMINISTRATOR)
 async def admin(ctx: SlashContext):
     """ Configurate your server's translation settings """
@@ -299,6 +302,7 @@ async def admin(ctx: SlashContext):
     text_channel_list = [channel for channel in guild.channels
                          if channel.type == ChannelType.GUILD_TEXT]
     text_channel_hash = {int(channel.id): channel for channel in text_channel_list}
+    text_channel_ids = list(text_channel_hash.keys())
 
     # region Admin Panel
     async def create_home_embed() -> (Embed, [ActionRow], [Component]):
@@ -385,13 +389,13 @@ async def admin(ctx: SlashContext):
             disable_edit_button = False
             if category_data:
                 category_data = dict(category_data)
-                auto_delete_string = get_auto_delete_timer_string(category_data['auto_delete_cd'])
+                auto_delete_string = await get_auto_delete_timer_string(category_data['auto_delete_cd'])
                 disable_reset_button = False
             else:
-                auto_delete_string = get_auto_delete_timer_string(None)
+                auto_delete_string = await get_auto_delete_timer_string(None)
 
-            langs_string = language_list_string(category_data)
-            affected_string = channel_list_string(text_channel_list, selected_category)
+            langs_string = await language_list_string(category_data)
+            affected_string = await channel_list_string(text_channel_list, selected_category)
 
             embed_dict['fields'] = [
                 EmbedField(name=f'Auto Translation', value=langs_string, inline=True),
@@ -465,12 +469,12 @@ async def admin(ctx: SlashContext):
             disable_edit_button = False
             if channel_data:
                 channel_data = dict(channel_data)
-                auto_delete_string = get_auto_delete_timer_string(int(channel_data['auto_delete_cd']))
+                auto_delete_string = await get_auto_delete_timer_string(int(channel_data['auto_delete_cd']))
                 disable_reset_button = False
             else:
-                auto_delete_string = get_auto_delete_timer_string(None)
+                auto_delete_string = await get_auto_delete_timer_string(None)
 
-            langs_string = language_list_string(channel_data)
+            langs_string = await language_list_string(channel_data)
 
             embed_dict['fields'] = [
                 EmbedField(name=f'Auto Translation', value=langs_string, inline=True),
@@ -526,15 +530,16 @@ async def admin(ctx: SlashContext):
 
     async def create_links_settings_embed() -> (Embed, [ActionRow], [Component]):
 
-        embed_dict = {
-            'title': f'`{guild.name}` - Linked Channel Settings',
-            'description': f'You are viewing your server\'s linked channels, select a channel below and then use '
-                           f'the second dropdown to select a link from that channel to others.',
-            'color': EMBED_PRIMARY,
-            'footer': FOOTER
-        }
-
-        embed = Embed(**embed_dict)
+        embed = Embed(
+            title=f'`{guild.name}` - Linked Channel Settings',
+            description=f'You are viewing your server\'s linked channels, select a channel below and then use '
+                        f'the second dropdown to select a link from that channel to others.',
+            fields=[
+                EmbedField(name=f'Total links', value=f'{server_links}/{MAX_LINKS}', inline=True),
+            ],
+            color=EMBED_PRIMARY,
+            footer=FOOTER
+        )
 
         channel_select_links = ChannelSelectMenu(
             placeholder='Select a channel...',
@@ -543,14 +548,16 @@ async def admin(ctx: SlashContext):
         )
         link_select = None
         if links_selected_channel:
-            links = group_channel_links(links_selected_channel, cursor)
+            cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (links_selected_channel.id,))
+            response = cursor.fetchall()
+            links = await group_channel_links(links_selected_channel, response)
             link_options = []
             for i, link in enumerate(links):
                 label = '→ ' + ', '.join(['#' + text_channel_hash[channel_to_id].name
                                           for channel_to_id in link["channels"]])
                 description = ', '.join([get_language_name(lang)
                                          for lang in link["languages"]])
-                # create a value id in the form of 'from__id-to_id,to_id,to_id'
+                # create a value id in the form of 'from_id-to_id,to_id,to_id'
                 value = (f'{links_selected_channel.id}-'
                          f'{",".join([str(channel_to_id) for channel_to_id in link["channels"]])}')
                 link_options.append(
@@ -565,8 +572,9 @@ async def admin(ctx: SlashContext):
                 )
         back_button = Button(style=ButtonStyle.SECONDARY, label='Back', custom_id='to_homepage',
                              emoji=PartialEmoji(id='1075538962787082250'))
-        new_link_button = Button(style=ButtonStyle.SUCCESS, label='New Link', custom_id='to_new_link',
-                                 emoji=PartialEmoji(name='➕'), disabled=not links_selected_channel)
+        new_link_button = Button(style=ButtonStyle.SUCCESS, label='New Link',
+                                 custom_id='to_new_link', emoji=PartialEmoji(name='➕'),
+                                 disabled=not links_selected_channel or server_links >= MAX_LINKS)
         delete_link_button = Button(style=ButtonStyle.DANGER, label='Delete Link', custom_id='delete_link',
                                     emoji=PartialEmoji(name='✖️'), disabled=selected_link is None)
 
@@ -580,29 +588,30 @@ async def admin(ctx: SlashContext):
         return embed, rows, components
 
     async def create_new_link_embed() -> (Embed, [ActionRow], [Component]):
-        from_channel = text_channel_hash[int(links_selected_channel)]
-        embed_dict = {
-            'title': f'`#{from_channel.name}` - New Link',
-            'description': f'You are creating a link from {from_channel.mention}, select target channels and '
-                           f'languages using the dropdowns below.',
-            'color': EMBED_PRIMARY,
-            'footer': FOOTER
-        }
-
-        embed = Embed(**embed_dict)
+        from_channel = text_channel_hash[int(links_selected_channel.id)]
+        embed = Embed(
+            title=f'`#{from_channel.name}` - New Link',
+            description=f'You are creating a link from {from_channel.mention}, select target channels and '
+                        f'languages using the dropdowns below. *You cannot link a channel to itself.*',
+            fields=[
+                EmbedField(name=f'Total links', value=f'{server_links}/{MAX_LINKS}', inline=True),
+            ],
+            color=EMBED_PRIMARY,
+            footer=FOOTER
+        )
 
         new_link_channel_select = ChannelSelectMenu(
             placeholder='Link channel to...',
             custom_id='new_link_channel_select',
             channel_types=[ChannelType.GUILD_TEXT],
-            max_values=5  # todo limit to max 5 links
+            max_values=(MAX_LINKS - server_links)
         )
 
         new_link_languages_select = StringSelectMenu(
             *auto_translation_options,
             placeholder='Select languages for auto translation...',
             custom_id='new_link_languages_select',
-            max_values=3
+            max_values=2
         )
 
         save_disabled = not (new_link_selected_languages and new_link_selected_channels)
@@ -754,6 +763,7 @@ async def admin(ctx: SlashContext):
                 case 'to_links_settings':
                     links_selected_channel = None
                     selected_link = None
+                    server_links = await get_total_links(cursor, text_channel_ids)
                     new_link_selected_languages, new_link_selected_channels = None, None
                     next_embed_function = create_links_settings_embed
                 case 'links_channel_select':
@@ -787,6 +797,8 @@ async def admin(ctx: SlashContext):
                         print(d)
                     cursor.executemany('INSERT INTO channel_link VALUES (?, ?, ?)', data)
                     conn.commit()
+                    server_links = await get_total_links(cursor, text_channel_ids)
+
                     new_link_selected_languages, new_link_selected_channels = None, None
                     next_embed_function = create_links_settings_embed
                 case 'delete_link':
@@ -801,6 +813,8 @@ async def admin(ctx: SlashContext):
                         f"channel_to_id IN ({'?,' * (len(to_channels) - 1)}?)",
                         (from_channel, *to_channels))
                     conn.commit()
+                    server_links -= len(to_channels)
+
                     selected_link = None
                     next_embed_function = create_links_settings_embed
                 # endregion
@@ -817,9 +831,9 @@ async def admin(ctx: SlashContext):
             message = await ctx.edit(message, embeds=next_embed, components=action_rows)
 
         except asyncio.TimeoutError:
-            await message.edit(embeds=Embed(
+            await message.edit(embed=Embed(
                 description=f'**Your session has expired, please use `/{ctx.command.name}` again if you would '
-                            f'like to continue.**'))
+                            f'like to continue.**'), components=[])
             break
 
 

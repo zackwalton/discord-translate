@@ -1,10 +1,9 @@
 import json
-import time
 from datetime import datetime, timedelta
 from sqlite3 import Cursor
 from typing import Any
 
-from interactions import GuildText, EmbedFooter, MaterialColours, Snowflake, GuildCategory
+from interactions import GuildText, EmbedFooter, MaterialColours, GuildCategory
 
 from const import LANGUAGES
 
@@ -30,16 +29,7 @@ AUTO_TRANSLATE_OPTIONS = [
 ]
 
 
-# list of all languages in a dict in the form of
-# merge countries_temp and AUTO_TRANSLATE_SELECT_OPTIONS into list of tuples
-
-
-def gen_countdown(offset: int) -> str:
-    """ Generates a discord countdown with a given offset"""
-    return f'<t:{round(time.time() + offset)}:R>'
-
-
-def get_auto_delete_timer_string(cooldown: int | str | None, can_inherit: bool = True) -> str:
+async def get_auto_delete_timer_string(cooldown: int | str | None, can_inherit: bool = True) -> str:
     """ Returns the label for the auto delete timer """
     if cooldown:
         cooldown = int(cooldown)
@@ -51,7 +41,7 @@ def get_auto_delete_timer_string(cooldown: int | str | None, can_inherit: bool =
     return 'Never delete'
 
 
-def find_in_list(data_list: [dict], value: Any, key: str) -> dict:
+async def find_in_list(data_list: [dict], value: Any, key: str) -> dict:
     """ Finds an item in a list of dictionaries by a given key and value """
     item = next((item for item in data_list
                  if item[key] == int(value)), None)
@@ -70,7 +60,7 @@ def get_language_name(language_code: str, add_native: bool = False, native_only:
     return f'Unknown: {language_code}'
 
 
-def language_list_string(data: dict) -> str:
+async def language_list_string(data: dict) -> str:
     """ Returns a string of all languages in a list """
     if not data or not data['auto_translate']:
         string = '`None`'
@@ -82,7 +72,8 @@ def language_list_string(data: dict) -> str:
     return string
 
 
-def channel_list_string(text_channel_list: [GuildText], selected_category: GuildCategory, max_length: int = 5) -> str:
+async def channel_list_string(text_channel_list: [GuildText], selected_category: GuildCategory,
+                              max_length: int = 5) -> str:
     """ Returns a string of all languages in a list """
     affected_channels = [
         f'{channel.mention}' for channel in text_channel_list
@@ -97,31 +88,37 @@ def channel_list_string(text_channel_list: [GuildText], selected_category: Guild
     return string
 
 
-def group_channel_links(selected_channel: GuildText, cursor: Cursor) -> list:
+async def get_total_links(cursor: Cursor, channel_ids: list[int | str]) -> int:
+    """ Returns the number of links created for a channel"""
+    cursor.execute("SELECT COUNT(*) FROM channel_link "
+                   f"WHERE channel_from_id IN ({('?,' * (len(channel_ids) - 1))}?)",
+                   channel_ids)
+    return cursor.fetchone()[0]
+
+
+async def group_channel_links(selected_channel: GuildText, links_query: list) -> list:
     """ Returns a list of lists of channel links, joined on their auto_translate languages"""
-    cursor.execute('SELECT * FROM channel_link WHERE channel_from_id = ?', (selected_channel.id,))
-    links = cursor.fetchall()
-    if not links:
+    if not links_query:
         return []
     channel_groups = []
 
-    for link in links:
-        link = dict(link)
-        link['languages'] = json.loads(link['languages'])
-        link['languages'].sort()
+    for row in links_query:
+        row = dict(row)
+        row['languages'] = json.loads(row['languages'])
+        row['languages'].sort()
         found_group = False
         for group in channel_groups:
-            if link['languages'] == group['languages']:
-                group['channels'].append(link['channel_to_id'])
+            if row['languages'] == group['languages']:
+                group['channels'].append(row['channel_to_id'])
                 found_group = True
                 break
-            if link['channel_to_id'] in group['channels']:
-                group['languages'].extend(link['languages'])
+            if row['channel_to_id'] in group['channels']:
+                group['languages'].extend(row['languages'])
                 group['languages'].sort()
                 found_group = True
                 break
         if not found_group:
-            channel_groups.append({'channels': [link['channel_to_id']], 'languages': link['languages']})
+            channel_groups.append({'channels': [row['channel_to_id']], 'languages': row['languages']})
     return channel_groups
 
 
