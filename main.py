@@ -16,7 +16,7 @@ from interactions.api.events import MessageReactionAdd, Component, Startup, NewT
 
 from const import FLAG_DATA_REGIONAL
 from translate import translate_text, detect_text_language, create_thread_trans_embed, \
-    create_trans_embed
+    create_trans_embed, get_guild_tokens
 from utils import (
     EMBED_PRIMARY, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name,
     AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links, get_total_links)
@@ -114,6 +114,11 @@ async def on_message_create(e: MessageCreate):
     message = e.message
     if not await should_process(message):
         return
+
+    guild_data = cursor.execute("SELECT * FROM guild WHERE id = ?", (e.message.guild.id,))
+    guild_data = dict(guild_data.fetchone())
+    if not guild_data:
+        return  # todo add guild to database and continue
 
     # thread message
     if message.channel.type in (ChannelType.GUILD_PRIVATE_THREAD, ChannelType.GUILD_PUBLIC_THREAD):
@@ -312,7 +317,7 @@ async def admin(ctx: SlashContext):
             'description': 'This is the `Admin Panel`, use the buttons below to configure your server.',
             'fields': [
                 EmbedField(name=f'Tokens',
-                           value=str(guild_data['tokens']), inline=True),
+                           value=str(guild_data['tokens_remaining']), inline=True),
                 EmbedField(name='Characters Translated', value=str(guild_data['characters_translated']),
                            inline=True)
             ],

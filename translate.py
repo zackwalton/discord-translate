@@ -1,6 +1,7 @@
 import os
 import time
 from pprint import pprint
+from sqlite3 import Cursor
 
 import openai
 import six
@@ -138,11 +139,22 @@ async def translation_tostring(translation_data: [dict]) -> str:
         text += t["translatedText"]
     return text
 
-# Text can also be a sequence of strings, in which case this method
-# will return a sequence of results for each text.
 
-# print flag and langs for all flag data
-# for flag, langs in FLAG_DATA.items():
-#     print(flag, langs)
-# translations = await translate_text(['fr', 'en'], 'Die lust ik ook🙂, maar als ik mag kiezen dan liever een worstenbroodje van de echte bakker.')
-# print(translations)
+async def get_guild_tokens(guild_id: int, cursor: Cursor) -> int:
+    """ Check if a guild has enough tokens to translate """
+    cursor.execute("SELECT tokens_remaining FROM guild WHERE id = ?", (guild_id,))
+    remaining = cursor.fetchone()[0]
+    if not remaining:
+        return 0
+    return remaining
+
+
+async def spend_guild_tokens(guild_id: int, amount: int, cursor: Cursor) -> None:
+    """ Spend tokens for a guild, must call commit() changes to database after calling this function """
+    cursor.execute('''
+    UPDATE guild 
+        SET tokens_remaining = CASE 
+            WHEN tokens_remaining < ? THEN 0 
+            ELSE tokens_remaining - ? END
+        WHERE id = ?
+    ''', (amount, amount, guild_id))
