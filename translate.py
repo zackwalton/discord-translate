@@ -25,13 +25,14 @@ class FailedTranslation(BaseException):
 TRANSLATION_CLIENT = translate.Client()
 
 
-async def translate_text(targets: str | list[str], text: str) -> [dict]:
+async def translate_text(targets: str | list[str], text: str) -> tuple[[dict], int]:
     """ Translates text into all target languages using the Google Cloud Translation API or GPT 3.5 Turbo
     Args:
         targets: List of all target translation languages e.g. ['en', 'fr']
         text: Text to translate to all target languages
     Returns:
         [dict]: List of dictionaries containing all translation data, a single dict per target language
+        int: Number of tokens used for the translation
     """
 
     if not isinstance(targets, list):  # convert to list
@@ -42,6 +43,7 @@ async def translate_text(targets: str | list[str], text: str) -> [dict]:
 
     print(f'TARGETS: {targets}')
     translation_data = []
+    tokens_used = 0
     for target in targets:
         try:
             start_time = time.time()
@@ -49,6 +51,7 @@ async def translate_text(targets: str | list[str], text: str) -> [dict]:
                 response = (await gpt_translate(text, target))['choices'][0]['message']['content']
                 result = {'translatedText': response}
             else:
+                tokens_used += len(text)
                 result = TRANSLATION_CLIENT.translate(text, target_language=target, format_='text')
                 if result['detectedSourceLanguage'] == target:  # skip languages that are the same as the source
                     continue
@@ -61,7 +64,7 @@ async def translate_text(targets: str | list[str], text: str) -> [dict]:
             translation_data.append(FailedTranslation(f'`{target}`'))
     print('\n')
     pprint(translation_data)
-    return translation_data
+    return translation_data, tokens_used
 
 
 async def gpt_translate(text: str, target: str) -> dict:
@@ -158,3 +161,4 @@ async def spend_guild_tokens(guild_id: int, amount: int, cursor: Cursor) -> None
             ELSE tokens_remaining - ? END
         WHERE id = ?
     ''', (amount, amount, guild_id))
+

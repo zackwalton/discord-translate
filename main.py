@@ -15,8 +15,8 @@ from interactions import (
 from interactions.api.events import MessageReactionAdd, Component, Startup, NewThreadCreate, ThreadDelete, MessageCreate
 
 from const import FLAG_DATA_REGIONAL
-from translate import translate_text, detect_text_language, create_thread_trans_embed, \
-    create_trans_embed, get_guild_tokens
+from translate import (translate_text, detect_text_language, create_thread_trans_embed, create_trans_embed,
+                       spend_guild_tokens, get_guild_tokens)
 from utils import (
     EMBED_PRIMARY, FOOTER, AUTO_DELETE_TIMERS, get_auto_delete_timer_string, get_language_name,
     AUTO_TRANSLATE_OPTIONS, language_list_string, channel_list_string, group_channel_links, get_total_links)
@@ -95,10 +95,13 @@ async def on_message_reaction_add(reaction: MessageReactionAdd):
         embed = Embed(**embed_dict)
 
     else:  # text translation
-        translation_data = await translate_text(
+        translation_data, used_tokens = await translate_text(
             FLAG_DATA_REGIONAL[emoji],  # target languages
             message.content  # text to translate
         )
+        if used_tokens:
+            await spend_guild_tokens(message.guild.id, used_tokens, cursor)
+            conn.commit()
         if not translation_data:
             return
         target_langs = FLAG_DATA_REGIONAL[emoji]
@@ -125,8 +128,29 @@ async def on_message_create(e: MessageCreate):
         await handle_thread_translation(message)
         return
 
-    # handle category, thread, and server auto translation languages
+    remaining_tokens = await get_guild_tokens(message.guild.id, cursor)
 
+    # handle message auto-translation
+    cursor.execute('SELECT * FROM channel WHERE id = ?', (message.channel.id,))
+    channel_data = cursor.fetchone()
+    auto_translate = []
+    auto_delete = None
+    if channel_data:
+        channel_data = dict(channel_data)
+        auto_translate = channel_data['auto_translate']
+        if 'auto_delete_cd' in channel_data:
+            auto_delete = channel_data['auto_delete_cd']
+    else:
+        cursor.execute('SELECT * FROM category WHERE id = ?', (message.channel.parent_id,))
+        category_data = cursor.fetchone()
+        if category_data:
+            category_data = dict(category_data)
+            auto_translate = category_data['auto_translate']
+            if 'auto_delete_cd' in category_data:
+                auto_delete = category_data['auto_delete_cd']
+    if auto_translate:
+        pass  # todo auto translate message
+    # handle all linked channel translations
     channel_id = message.channel.id
     links = [dict(link) for link in
              cursor.execute(
@@ -138,7 +162,6 @@ async def on_message_create(e: MessageCreate):
         channel_to: GuildText = await client.fetch_channel(channel_to_id)
         if channel_to.type == ChannelType.GUILD_TEXT:
             await channel_to.send(message.content)
-    await message.reply('test')
 
 
 async def handle_thread_translation(message: Message):
@@ -147,9 +170,15 @@ async def handle_thread_translation(message: Message):
     if thread_data:
         thread_data = dict(thread_data)
         languages = thread_data['languages']
+        remaining_tokens = await get_guild_tokens(message.guild.id, cursor)
+        if remaining_tokens < (len(languages) * len(message.content)):
+            return
         if languages:
             languages = json.loads(languages)
-            translation_data = await translate_text(languages, message.content)
+            translation_data, used_tokens = await translate_text(languages, message.content)
+            if used_tokens:
+                await spend_guild_tokens(message.guild.id, used_tokens, cursor)
+                conn.commit()
             if not translation_data:
                 return
             embed = await create_thread_trans_embed(translation_data, message.author)
@@ -474,7 +503,7 @@ async def admin(ctx: SlashContext):
             disable_edit_button = False
             if channel_data:
                 channel_data = dict(channel_data)
-                auto_delete_string = await get_auto_delete_timer_string(int(channel_data['auto_delete_cd']))
+                auto_delete_string = await get_auto_delete_timer_string(channel_data['auto_delete_cd'])
                 disable_reset_button = False
             else:
                 auto_delete_string = await get_auto_delete_timer_string(None)
